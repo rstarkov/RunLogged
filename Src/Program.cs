@@ -1,7 +1,5 @@
 ﻿using System;
 using System.IO;
-using System.Text;
-using RT.Util;
 using RT.Util.CommandLine;
 using RT.Util.ExtensionMethods;
 
@@ -20,8 +18,13 @@ namespace RunLogged
 
         static int Main(string[] args)
         {
-            WinAPI.SetConsoleOutputCP(65001);
-            Console.OutputEncoding = Encoding.UTF8;
+#if CONSOLE
+            RT.Util.WinAPI.SetConsoleOutputCP(65001);
+            Console.OutputEncoding = System.Text.Encoding.UTF8;
+#else
+            System.Windows.Forms.Application.EnableVisualStyles();
+            System.Windows.Forms.Application.SetCompatibleTextRenderingDefault(false);
+#endif
 
             string originalWorkingDir = Directory.GetCurrentDirectory();
             try
@@ -32,8 +35,16 @@ namespace RunLogged
                 }
                 catch (CommandLineParseException e)
                 {
+#if CONSOLE
                     Console.WriteLine();
                     e.WriteUsageInfoToConsole();
+#else
+                    var tr = new Translation();
+                    string text = e.GenerateHelp(tr, 60).ToString();
+                    if (!e.WasCausedByHelpRequest())
+                        text += Environment.NewLine + e.GenerateErrorText(tr, 60).ToString();
+                    new RT.Util.Dialogs.DlgMessage() { Message = text, Type = RT.Util.Dialogs.DlgType.Warning, Font = new System.Drawing.Font("Consolas", 9) }.Show();
+#endif
                     return 1;
                 }
 
