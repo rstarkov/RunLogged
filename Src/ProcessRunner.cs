@@ -34,6 +34,7 @@ namespace RunLogged
         public event EventHandler<EventArgs<string>> StdoutText;
         public event EventHandler<EventArgs<string>> StderrText;
 
+        public string LastRawCommandLine { get; private set; }
         public int LastExitCode { get; private set; }
 
         public ProcessRunner(string[] toRun, string workingDir)
@@ -43,7 +44,8 @@ namespace RunLogged
 
             _startInfo = new ProcessStartInfo();
             _startInfo.FileName = @"cmd.exe";
-            _startInfo.Arguments = "/C " + escapeCmdline(toRun).JoinString(" ") + @" >{0} 2>{1}".Fmt(_tempStdout, _tempStderr);
+            LastRawCommandLine = escapeCmdline(toRun).JoinString(" ");
+            _startInfo.Arguments = "/C " + LastRawCommandLine + @" >{0} 2>{1}".Fmt(_tempStdout, _tempStderr);
             _startInfo.WorkingDirectory = workingDir;
             _startInfo.RedirectStandardInput = false;
             _startInfo.RedirectStandardOutput = false;
