@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Text;
 using System.Threading;
 using RT.Util;
 using RT.Util.ExtensionMethods;
@@ -23,7 +24,7 @@ namespace RunLogged
         private ProcessStartInfo _startInfo;
         private string _tempStdout, _tempStderr;
         private Stream _streamStdout, _streamStderr;
-        private PartialUtf8Decoder _utf8Stdout, _utf8Stderr;
+        private Decoder _utf8Stdout, _utf8Stderr;
         private Thread _thread;
         private ThreadExiter _exiter;
 
@@ -75,8 +76,8 @@ namespace RunLogged
             _process.EnableRaisingEvents = true;
             _process.StartInfo = _startInfo;
             _process.Start();
-            _utf8Stdout = new PartialUtf8Decoder();
-            _utf8Stderr = new PartialUtf8Decoder();
+            _utf8Stdout = Encoding.UTF8.GetDecoder();
+            _utf8Stderr = Encoding.UTF8.GetDecoder();
             LastExitCode = -1;
 
             while (!_process.HasExited)
@@ -113,7 +114,7 @@ namespace RunLogged
             checkOutput(_tempStderr, ref _streamStderr, _utf8Stderr, StderrData, StderrText);
         }
 
-        private void checkOutput(string filename, ref Stream stream, PartialUtf8Decoder utf8, EventHandler<EventArgs<byte[]>> dataEvent, EventHandler<EventArgs<string>> textEvent)
+        private void checkOutput(string filename, ref Stream stream, Decoder utf8, EventHandler<EventArgs<byte[]>> dataEvent, EventHandler<EventArgs<string>> textEvent)
         {
             if (stream == null)
             {
@@ -128,9 +129,14 @@ namespace RunLogged
                 {
                     if (dataEvent != null)
                         dataEvent(this, new EventArgs<byte[]>(newBytes));
-                    var newText = utf8.AppendBytes(newBytes);
-                    if (newText.Length > 0 && textEvent != null)
-                        textEvent(this, new EventArgs<string>(newText));
+                    if (textEvent != null)
+                    {
+                        var count = utf8.GetCharCount(newBytes, 0, newBytes.Length);
+                        char[] buffer = new char[count];
+                        int charsObtained = utf8.GetChars(newBytes, 0, newBytes.Length, buffer, 0);
+                        if (charsObtained > 0)
+                            textEvent(this, new EventArgs<string>(new string(buffer)));
+                    }
                 }
             }
         }

@@ -19,7 +19,6 @@ namespace RunLogged
         static int Main(string[] args)
         {
 #if CONSOLE
-            RT.Util.WinAPI.SetConsoleOutputCP(65001);
             Console.OutputEncoding = System.Text.Encoding.UTF8;
 #else
             System.Windows.Forms.Application.EnableVisualStyles();
