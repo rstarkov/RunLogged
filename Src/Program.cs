@@ -151,11 +151,11 @@ namespace RunLogged
         public string WorkingDir;
 
         [Option("--log")]
-        [DocumentationLiteral("Log file name pattern. May be relative to --cd WorkingDir. The timestamp YYYY-MM-DD is substituted in place of any occurrences of \"{}\" in the --log parameter.\n\nWhere the --log argument is not specified, the log filename will be constructed from the command to be executed, a timestamp and a .log extension.\n\nIf the log file already exists, it will be appended to. The directory to contain the log file is created automatically if necessary.")]
+        [DocumentationLiteral("Log file name pattern. May be relative to &*--cd <<WorkingDir>>*&. The timestamp YYYY-MM-DD is substituted in place of any occurrences of \"\"{{}}\"\" in &*<<LogFilename>>*&.\n\nWhere the &*--log*& argument is not specified, the log filename will be constructed from the command to be executed, a timestamp and a .log extension.\n\nIf the log file already exists, it will be appended to. The directory to contain the log file is created automatically if necessary.")]
         public string LogFilename;
 
         [Option("--email")]
-        [DocumentationLiteral("If the exit code of the specified command is anything other than 0, send the log to this email address. Other email-related settings should be configured in the settings file at %%ProgramData%%\\\\RunLogged.")]
+        [DocumentationLiteral("If the exit code of the specified command is anything other than 0, send the log to this email address. Other email-related settings should be configured in the settings file at ^*%%ProgramData%%\\\\RunLogged*^.")]
         public string Email;
 
         [IsPositional]
