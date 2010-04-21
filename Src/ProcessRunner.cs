@@ -64,7 +64,7 @@ namespace RunLogged
         {
             foreach (var arg in args)
             {
-                string newarg = arg.Replace("\\", "\\\\").Replace("\"", "\\\"");
+                string newarg = arg;
                 if (arg.Contains(" "))
                     newarg = "\"" + arg + "\"";
                 yield return newarg;
