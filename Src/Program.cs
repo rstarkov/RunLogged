@@ -39,7 +39,7 @@ namespace RunLogged
             {
                 try
                 {
-                    Args = new CommandLineParser<CmdLineArgs>().Parse(args);
+                    Args = CommandLineParser<CmdLineArgs>.Parse(args);
                 }
                 catch (CommandLineParseException e)
                 {
