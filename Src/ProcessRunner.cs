@@ -26,7 +26,7 @@ namespace RunLogged
         private Stream _streamStdout, _streamStderr;
         private Decoder _utf8Stdout, _utf8Stderr;
         private Thread _thread;
-        private ThreadExiter _exiter;
+        private ManualResetEventSlim _exited = new ManualResetEventSlim();
 
         public event EventHandler ProcessExited;
         public event EventHandler<EventArgs<byte[]>> StdoutData;
@@ -106,8 +106,7 @@ namespace RunLogged
             _utf8Stdout = _utf8Stderr = null;
             _process = null;
             _thread = null;
-            _exiter.SignalExited();
-            _exiter = null;
+            _exited.Set();
         }
 
         private void checkOutputs()
@@ -148,15 +147,15 @@ namespace RunLogged
             if (_process != null)
                 throw new InvalidOperationException("Cannot start another instance of the process while the current one is running.");
 
-            _exiter = new ThreadExiter();
+            _exited.Reset();
             _thread = new Thread(thread);
             _thread.Start();
         }
 
         public void WaitForExit()
         {
-            if (_exiter != null)
-                _exiter.WaitExited();
+            if (_exited != null)
+                _exited.Wait();
         }
     }
 }
