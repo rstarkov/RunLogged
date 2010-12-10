@@ -32,7 +32,7 @@ namespace RunLogged
 
             SettingsUtil.LoadSettings(out Settings);
             Settings.SyncPasswords();
-            Settings.Save();
+            Settings.SaveQuiet();
 
             string originalWorkingDir = Directory.GetCurrentDirectory();
             try
@@ -167,13 +167,13 @@ namespace RunLogged
             if (CommandToRun.Length == 0)
                 return "You must specify the command to be executed (CommandToRun).";
 
-            if (LogFilename == null)
-                LogFilename = Path.GetFileName(CommandToRun[0]).Replace(".", "_") + "--{}.log";
-            LogFilename = Path.GetFullPath(LogFilename.Replace("{}", DateTime.Now.ToString("yyyy-MM-dd")));
-
             if (WorkingDir != null)
                 try { Directory.SetCurrentDirectory(WorkingDir); }
                 catch { return "Cannot set working directory - check that the directory exists and that the path is valid. \"{0}\"".Fmt(WorkingDir); }
+
+            if (LogFilename == null)
+                LogFilename = Path.GetFileName(CommandToRun[0]).Replace(".", "_") + "--{}.log";
+            LogFilename = Path.GetFullPath(LogFilename.Replace("{}", DateTime.Now.ToString("yyyy-MM-dd")));
 
             try
             {
