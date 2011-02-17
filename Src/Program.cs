@@ -4,13 +4,14 @@ using System.IO;
 using System.Net.Mail;
 using System.Security.Cryptography;
 using System.Text;
+using System.Threading;
 using System.Windows.Forms;
 using RT.Util;
 using RT.Util.CommandLine;
 using RT.Util.ExtensionMethods;
 
 /// TODO:
-/// - proper (albeit approximate) by-line handling: nice interleaving of stderr with stdout; label the approx time of every line; backspaces in file stream
+/// - proper (albeit approximate) by-line handling: nice interleaving of stderr with stdout; label the approx time of every line
 /// - execute via a batch file
 
 namespace RunLogged
@@ -19,8 +20,9 @@ namespace RunLogged
     {
         public static Settings Settings;
         public static CmdLineArgs Args;
-        public static StreamWriter Log;
+        public static Stream Log;
         public static long LogStartOffset;
+        public static NotifyIcon TrayIcon;
 
         static int Main(string[] args)
         {
@@ -56,62 +58,86 @@ namespace RunLogged
                     return 1;
                 }
 
+                int exitCode = 0;
                 var runner = new ProcessRunner(Args.CommandToRun, Directory.GetCurrentDirectory());
                 runner.StdoutText += runner_StdoutText;
                 runner.StderrText += runner_StderrText;
 
-                if (LogStartOffset > 0)
+                var thread = new Thread(() =>
                 {
-                    for (int i = 0; i < 3; i++)
-                        Log.WriteLine();
-                    LogStartOffset = Program.Log.BaseStream.Position;
+                    if (LogStartOffset > 0)
+                    {
+                        for (int i = 0; i < 3; i++)
+                            Log.Write(Environment.NewLine.ToUtf8());
+                        LogStartOffset = Log.Position;
+                    }
+                    outputLine("************************************************************************");
+                    outputLine("****** RunLogged invoked at {0}".Fmt(DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")));
+                    outputLine("****** Command: |{0}|".Fmt(runner.LastRawCommandLine));
+                    outputLine("****** CurDir: |{0}|".Fmt(Directory.GetCurrentDirectory()));
+                    outputLine("****** LogTo: |{0}|".Fmt(Args.LogFilename));
+
+                    runner.Start();
+                    runner.WaitForExit();
+
+                    outputLine("****** completed at {0}".Fmt(DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")));
+                    outputLine("****** exit code: {0}".Fmt(runner.LastExitCode));
+
+                    if (runner.LastExitCode != 0 && Args.Email != null)
+                        try
+                        {
+                            var client = new SmtpClient(Program.Settings.SmtpHost);
+                            client.Credentials = new System.Net.NetworkCredential(Program.Settings.SmtpUser, Program.Settings.SmtpPasswordDecrypted);
+                            var mail = new MailMessage();
+                            mail.From = new MailAddress(Program.Settings.SmtpFrom);
+                            mail.To.Add(new MailAddress(Args.Email));
+                            mail.Subject = "[RunLogged] Failure: {0}".Fmt(runner.LastRawCommandLine.SubstringSafe(0, 50));
+                            using (var log = File.Open(Args.LogFilename, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))
+                            using (var logreader = new StreamReader(log))
+                            {
+                                log.Seek(Program.LogStartOffset, SeekOrigin.Begin);
+                                mail.Body = logreader.ReadToEnd();
+                            }
+                            client.Send(mail);
+                        }
+                        catch (Exception e)
+                        {
+                            output("Exception:");
+                            while (e != null)
+                            {
+                                output("{0}: {1}".Fmt(e.GetType().Name, e.Message));
+                                output(e.StackTrace);
+                                e = e.InnerException;
+                            }
+                        }
+
+                    exitCode = runner.LastExitCode;
+                    Application.Exit();
+                });
+                thread.Start();
+
+                if (Args.TrayIcon != null)
+                {
+                    TrayIcon = new NotifyIcon
+                    {
+                        Icon = new System.Drawing.Icon(Args.TrayIcon),
+                        ContextMenu = new ContextMenu(new MenuItem[] {
+                            new MenuItem("&Terminate", (s, e) => { runner.Stop(); })
+                        }),
+                        Visible = true
+                    };
                 }
-                outputLine("************************************************************************");
-                outputLine("****** RunLogged invoked at {0}".Fmt(DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")));
-                outputLine("****** Command: |{0}|".Fmt(runner.LastRawCommandLine));
-                outputLine("****** CurDir: |{0}|".Fmt(Directory.GetCurrentDirectory()));
-                outputLine("****** LogTo: |{0}|".Fmt(Args.LogFilename));
 
-                runner.Start();
-                runner.WaitForExit();
-
-                outputLine("****** completed at {0}".Fmt(DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")));
-                outputLine("****** exit code: {0}".Fmt(runner.LastExitCode));
-
-                if (runner.LastExitCode != 0 && Args.Email != null)
-                    try
-                    {
-                        var client = new SmtpClient(Program.Settings.SmtpHost);
-                        client.Credentials = new System.Net.NetworkCredential(Program.Settings.SmtpUser, Program.Settings.SmtpPasswordDecrypted);
-                        var mail = new MailMessage();
-                        mail.From = new MailAddress(Program.Settings.SmtpFrom);
-                        mail.To.Add(new MailAddress(Args.Email));
-                        mail.Subject = "[RunLogged] Failure: {0}".Fmt(runner.LastRawCommandLine.SubstringSafe(0, 50));
-                        using (var log = File.Open(Args.LogFilename, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))
-                        using (var logreader = new StreamReader(log))
-                        {
-                            log.Seek(Program.LogStartOffset, SeekOrigin.Begin);
-                            mail.Body = logreader.ReadToEnd();
-                        }
-                        client.Send(mail);
-                    }
-                    catch (Exception e)
-                    {
-                        output("Exception:");
-                        while (e != null)
-                        {
-                            output("{0}: {1}".Fmt(e.GetType().Name, e.Message));
-                            output(e.StackTrace);
-                            e = e.InnerException;
-                        }
-                    }
-
-                return runner.LastExitCode;
+                Application.Run();
+                return exitCode;
             }
             finally
             {
                 if (Log != null)
                     Log.Dispose();
+                if (TrayIcon != null)
+                    TrayIcon.Dispose();
+
                 try { Directory.SetCurrentDirectory(originalWorkingDir); }
                 catch { } // the script could have theoretically CD'd out of it and deleted it, so don't crash if that happens.
             }
@@ -122,7 +148,41 @@ namespace RunLogged
 #if CONSOLE
             Console.Write(text);
 #endif
-            Log.Write(text);
+            int index;
+            while (text.Length > 0 && (index = text.IndexOf('\b')) != -1)
+            {
+                if (index > 0)
+                {
+                    Log.Write(text.Substring(0, index).ToUtf8());
+                    text = text.Substring(index);
+                }
+
+                // How many backspaces are there? (and remove them)
+                int backspaces = text.Length;
+                text = text.TrimStart('\b');
+                backspaces -= text.Length;
+
+                // Try to read that many _characters_ from the stream
+                var curPos = Log.Position;
+                string readAgainStr;
+                int readBytes = backspaces;
+                while (true)
+                {
+                    Log.Seek(curPos - readBytes, SeekOrigin.Begin);
+                    var readAgain = Log.Read(readBytes);
+                    if ((readAgain[0] & 0xc0) != 0x80 && ((readAgainStr = readAgain.FromUtf8()).Length == backspaces || readAgainStr.Contains("\n")))
+                        break;
+                    readBytes++;
+                }
+
+                // Don’t allow a backspace to erase a newline
+                if ((index = readAgainStr.LastIndexOf('\n')) != -1)
+                    Log.Seek(curPos - readAgainStr.Substring(index + 1).Utf8Length(), SeekOrigin.Begin);
+                else
+                    Log.Seek(curPos - readAgainStr.Utf8Length(), SeekOrigin.Begin);
+            }
+            if (text.Length > 0)
+                Log.Write(text.ToUtf8());
         }
 
         private static void outputLine(string text)
@@ -158,6 +218,10 @@ namespace RunLogged
         [DocumentationLiteral("If the exit code of the specified command is anything other than 0, send the log to this email address. Other email-related settings should be configured in the settings file at ^*%%ProgramData%%\\\\RunLogged*^.")]
         public string Email;
 
+        [Option("--trayicon")]
+        [DocumentationLiteral("Specifies the path and filename of an ico file to use for a tray icon.")]
+        public string TrayIcon;
+
         [IsPositional]
         [DocumentationLiteral("Command to be executed, with arguments if any.")]
         public string[] CommandToRun;
@@ -179,13 +243,13 @@ namespace RunLogged
             {
                 try { Directory.CreateDirectory(Path.GetDirectoryName(LogFilename)); }
                 catch { }
-                Program.Log = new StreamWriter(File.Open(LogFilename, FileMode.Append, FileAccess.Write, FileShare.Read));
-                Program.Log.AutoFlush = true;
-                Program.LogStartOffset = Program.Log.BaseStream.Position;
+                Program.Log = File.Open(LogFilename, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.Read);
+                Program.Log.Seek(0, SeekOrigin.End);
+                Program.LogStartOffset = Program.Log.Position;
             }
-            catch
+            catch (Exception e)
             {
-                return "Could not open the log file for writing. File \"{0}\".".Fmt(LogFilename);
+                return "Could not open the log file for writing. File \"{0}\".\n{1}".Fmt(LogFilename, e.Message);
             }
 
             return null;

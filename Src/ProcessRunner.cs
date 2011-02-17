@@ -152,6 +152,12 @@ namespace RunLogged
             _thread.Start();
         }
 
+        public void Stop()
+        {
+            if (_process != null)
+                _process.KillWithChildren();
+        }
+
         public void WaitForExit()
         {
             if (_exited != null)
