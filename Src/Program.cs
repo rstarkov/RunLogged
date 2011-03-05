@@ -8,21 +8,21 @@ using System.Threading;
 using System.Windows.Forms;
 using RT.Util;
 using RT.Util.CommandLine;
+using RT.Util.Consoles;
 using RT.Util.ExtensionMethods;
-
-/// TODO:
-/// - proper (albeit approximate) by-line handling: nice interleaving of stderr with stdout; label the approx time of every line
-/// - execute via a batch file
 
 namespace RunLogged
 {
     class Program
     {
-        public static Settings Settings;
-        public static CmdLineArgs Args;
-        public static Stream Log;
-        public static long LogStartOffset;
-        public static NotifyIcon TrayIcon;
+        private static Settings Settings;
+        private static CmdLineArgs Args;
+        private static string OriginalCurrentDirectory;
+        private static NotifyIcon TrayIcon;
+        private static ProcessRunner _runner;
+        private static Stream Log;
+        private static long LogStartOffset;
+        private static Thread _readingThread;
 
         static int Main(string[] args)
         {
@@ -32,115 +32,179 @@ namespace RunLogged
             Console.OutputEncoding = System.Text.Encoding.UTF8;
 #endif
 
+            try
+            {
+                return mainCore(args);
+            }
+            catch (CommandLineParseException e)
+            {
+                var message = "\n" + e.GenerateHelp(null, wrapToWidth());
+                if (!e.WasCausedByHelpRequest())
+                    message += "\n" + e.GenerateErrorText(null, wrapToWidth());
+                tellUser(message);
+                return -80001;
+            }
+            catch (TellUserException e)
+            {
+                var message = "\n" + "Error: ".Color(ConsoleColor.Red) + e.Message;
+                tellUser(message);
+                return -80002;
+            }
+#if !DEBUG
+            catch (Exception e)
+            {
+                var message = "\n" + "An internal error has occurred in RunLogged: ".Color(ConsoleColor.Red);
+                foreach (var ex in e.SelectChain(ex => ex.InnerException))
+                {
+                    message += "\n" + ex.GetType().Name.Color(ConsoleColor.Yellow) + ": " + ex.Message.Color(ConsoleColor.White);
+                    message += "\n" + ex.StackTrace;
+                }
+                tellUser(message);
+                return -80003;
+            }
+#endif
+            finally
+            {
+                cleanup();
+            }
+        }
+
+        private static int wrapToWidth()
+        {
+#if CONSOLE
+            return ConsoleUtil.WrapToWidth();
+#else
+            return 60;
+#endif
+        }
+
+        private static void tellUser(ConsoleColoredString message)
+        {
+#if CONSOLE
+            ConsoleUtil.WriteLine(message);
+#else
+            new RT.Util.Dialogs.DlgMessage() { Message = text, Type = RT.Util.Dialogs.DlgType.Warning, Font = new System.Drawing.Font("Consolas", 9) }.Show();
+#endif
+        }
+
+        private static int mainCore(string[] args)
+        {
             SettingsUtil.LoadSettings(out Settings);
             Settings.SyncPasswords();
             Settings.SaveQuiet();
 
-            string originalWorkingDir = Directory.GetCurrentDirectory();
+            OriginalCurrentDirectory = Directory.GetCurrentDirectory();
+
+            Console.CancelKeyPress += processCtrlC;
+
+            Args = CommandLineParser<CmdLineArgs>.Parse(args);
+
             try
             {
-                try
-                {
-                    Args = CommandLineParser<CmdLineArgs>.Parse(args);
-                }
-                catch (CommandLineParseException e)
-                {
-#if CONSOLE
-                    Console.WriteLine();
-                    e.WriteUsageInfoToConsole();
-#else
-                    var tr = new Translation();
-                    string text = e.GenerateHelp(tr, 60).ToString();
-                    if (!e.WasCausedByHelpRequest())
-                        text += Environment.NewLine + e.GenerateErrorText(tr, 60).ToString();
-                    new RT.Util.Dialogs.DlgMessage() { Message = text, Type = RT.Util.Dialogs.DlgType.Warning, Font = new System.Drawing.Font("Consolas", 9) }.Show();
-#endif
-                    return 1;
-                }
-
-                int exitCode = 0;
-                var runner = new ProcessRunner(Args.CommandToRun, Directory.GetCurrentDirectory());
-                runner.StdoutText += runner_StdoutText;
-                runner.StderrText += runner_StderrText;
-
-                var thread = new Thread(() =>
-                {
-                    if (LogStartOffset > 0)
-                    {
-                        for (int i = 0; i < 3; i++)
-                            Log.Write(Environment.NewLine.ToUtf8());
-                        LogStartOffset = Log.Position;
-                    }
-                    outputLine("************************************************************************");
-                    outputLine("****** RunLogged invoked at {0}".Fmt(DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")));
-                    outputLine("****** Command: |{0}|".Fmt(runner.LastRawCommandLine));
-                    outputLine("****** CurDir: |{0}|".Fmt(Directory.GetCurrentDirectory()));
-                    outputLine("****** LogTo: |{0}|".Fmt(Args.LogFilename));
-
-                    runner.Start();
-                    runner.WaitForExit();
-
-                    outputLine("****** completed at {0}".Fmt(DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")));
-                    outputLine("****** exit code: {0}".Fmt(runner.LastExitCode));
-
-                    if (runner.LastExitCode != 0 && Args.Email != null)
-                        try
-                        {
-                            var client = new SmtpClient(Program.Settings.SmtpHost);
-                            client.Credentials = new System.Net.NetworkCredential(Program.Settings.SmtpUser, Program.Settings.SmtpPasswordDecrypted);
-                            var mail = new MailMessage();
-                            mail.From = new MailAddress(Program.Settings.SmtpFrom);
-                            mail.To.Add(new MailAddress(Args.Email));
-                            mail.Subject = "[RunLogged] Failure: {0}".Fmt(runner.LastRawCommandLine.SubstringSafe(0, 50));
-                            using (var log = File.Open(Args.LogFilename, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))
-                            using (var logreader = new StreamReader(log))
-                            {
-                                log.Seek(Program.LogStartOffset, SeekOrigin.Begin);
-                                mail.Body = logreader.ReadToEnd();
-                            }
-                            client.Send(mail);
-                        }
-                        catch (Exception e)
-                        {
-                            output("Exception:");
-                            while (e != null)
-                            {
-                                output("{0}: {1}".Fmt(e.GetType().Name, e.Message));
-                                output(e.StackTrace);
-                                e = e.InnerException;
-                            }
-                        }
-
-                    exitCode = runner.LastExitCode;
-                    Application.Exit();
-                });
-                thread.Start();
-
-                if (Args.TrayIcon != null)
-                {
-                    TrayIcon = new NotifyIcon
-                    {
-                        Icon = new System.Drawing.Icon(Args.TrayIcon),
-                        ContextMenu = new ContextMenu(new MenuItem[] {
-                            new MenuItem("&Terminate", (s, e) => { runner.Stop(); })
-                        }),
-                        Visible = true
-                    };
-                }
-
-                Application.Run();
-                return exitCode;
+                try { Directory.CreateDirectory(Path.GetDirectoryName(Args.LogFilename)); }
+                catch { }
+                Program.Log = File.Open(Args.LogFilename, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.Read);
+                Program.Log.Seek(0, SeekOrigin.End);
+                Program.LogStartOffset = Program.Log.Position;
             }
-            finally
+            catch (Exception e)
             {
-                if (Log != null)
-                    Log.Dispose();
-                if (TrayIcon != null)
-                    TrayIcon.Dispose();
-
-                try { Directory.SetCurrentDirectory(originalWorkingDir); }
-                catch { } // the script could have theoretically CD'd out of it and deleted it, so don't crash if that happens.
+                throw new TellUserException("Could not open the log file for writing. File \"{0}\".\n{1}".Fmt(Args.LogFilename, e.Message));
             }
+
+            _runner = new ProcessRunner(Args.CommandToRun, Directory.GetCurrentDirectory());
+            _runner.StdoutText += runner_StdoutText;
+            _runner.StderrText += runner_StderrText;
+
+            _readingThread = new Thread(readingThread);
+            _readingThread.Start();
+
+            if (Args.TrayIcon != null)
+            {
+                TrayIcon = new NotifyIcon
+                {
+                    Icon = new System.Drawing.Icon(Args.TrayIcon),
+                    ContextMenu = new ContextMenu(new MenuItem[] {
+                        new MenuItem("&Terminate", (s, e) => { _runner.Stop(); })
+                    }),
+                    Visible = true
+                };
+            }
+
+            Application.Run();
+
+            return _runner.LastExitCode;
+        }
+
+        private static void cleanup()
+        {
+            if (Log != null)
+                Log.Dispose();
+            if (TrayIcon != null)
+                TrayIcon.Dispose();
+
+            if (OriginalCurrentDirectory != null)
+                try { Directory.SetCurrentDirectory(OriginalCurrentDirectory); }
+                catch { } // the script could have theoretically CD'd out of it and deleted it, so don't crash if that happens.
+        }
+
+        private static void processCtrlC(object sender, ConsoleCancelEventArgs e)
+        {
+            if (_runner != null)
+                _runner.Stop();
+            if (_readingThread != null)
+                _readingThread.Join();
+            cleanup(); // must do this because Ctrl+C ends the program without running "finally" clauses...
+        }
+
+        private static void readingThread()
+        {
+            if (LogStartOffset > 0)
+            {
+                for (int i = 0; i < 3; i++)
+                    Log.Write(Environment.NewLine.ToUtf8());
+                LogStartOffset = Log.Position;
+            }
+            outputLine("************************************************************************");
+            outputLine("****** RunLogged invoked at {0}".Fmt(DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")));
+            outputLine("****** Command: |{0}|".Fmt(_runner.LastRawCommandLine));
+            outputLine("****** CurDir: |{0}|".Fmt(Directory.GetCurrentDirectory()));
+            outputLine("****** LogTo: |{0}|".Fmt(Args.LogFilename));
+
+            _runner.Start();
+            _runner.WaitForExit();
+
+            if (_runner.LastAborted)
+            {
+                outputLine("****** aborted at {0}".Fmt(DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")));
+            }
+            else
+            {
+                outputLine("****** completed at {0}".Fmt(DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")));
+                outputLine("****** exit code: {0}".Fmt(_runner.LastExitCode));
+            }
+
+            if (_runner.LastExitCode != 0 && Args.Email != null && !_runner.LastAborted)
+                emailFailureLog();
+
+            Application.Exit();
+        }
+
+        private static void emailFailureLog()
+        {
+            var client = new SmtpClient(Program.Settings.SmtpHost);
+            client.Credentials = new System.Net.NetworkCredential(Program.Settings.SmtpUser, Program.Settings.SmtpPasswordDecrypted);
+            var mail = new MailMessage();
+            mail.From = new MailAddress(Program.Settings.SmtpFrom);
+            mail.To.Add(new MailAddress(Args.Email));
+            mail.Subject = "[RunLogged] Failure: {0}".Fmt(_runner.LastRawCommandLine.SubstringSafe(0, 50));
+            using (var log = File.Open(Args.LogFilename, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))
+            using (var logreader = new StreamReader(log))
+            {
+                log.Seek(Program.LogStartOffset, SeekOrigin.Begin);
+                mail.Body = logreader.ReadToEnd();
+            }
+            client.Send(mail);
         }
 
         private static void output(string text)
@@ -203,9 +267,15 @@ namespace RunLogged
         }
     }
 
-    [DocumentationLiteral(@"Runs the specified command and logs all the output to a timestamped log file.")]
-    public class CmdLineArgs : ICommandLineValidatable
+    class TellUserException : Exception
     {
+        public TellUserException(string message) : base(message) { }
+    }
+
+    [DocumentationLiteral(@"Runs the specified command and logs all the output to a timestamped log file.")]
+    class CmdLineArgs : ICommandLineValidatable
+    {
+#pragma warning disable 649 // Field is never assigned to, and will always have its default value null
         [Option("--cd")]
         [DocumentationLiteral("Optionally changes the working directory while executing the command.")]
         public string WorkingDir;
@@ -239,21 +309,9 @@ namespace RunLogged
                 LogFilename = Path.GetFileName(CommandToRun[0]).Replace(".", "_") + "--{}.log";
             LogFilename = Path.GetFullPath(LogFilename.Replace("{}", DateTime.Now.ToString("yyyy-MM-dd")));
 
-            try
-            {
-                try { Directory.CreateDirectory(Path.GetDirectoryName(LogFilename)); }
-                catch { }
-                Program.Log = File.Open(LogFilename, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.Read);
-                Program.Log.Seek(0, SeekOrigin.End);
-                Program.LogStartOffset = Program.Log.Position;
-            }
-            catch (Exception e)
-            {
-                return "Could not open the log file for writing. File \"{0}\".\n{1}".Fmt(LogFilename, e.Message);
-            }
-
             return null;
         }
+#pragma warning restore 649
     }
 
     [Settings("RunLogged", SettingsKind.MachineSpecific)]
