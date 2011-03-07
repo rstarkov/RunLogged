@@ -83,7 +83,7 @@ namespace RunLogged
 #if CONSOLE
             ConsoleUtil.WriteLine(message);
 #else
-            new RT.Util.Dialogs.DlgMessage() { Message = text, Type = RT.Util.Dialogs.DlgType.Warning, Font = new System.Drawing.Font("Consolas", 9) }.Show();
+            new RT.Util.Dialogs.DlgMessage() { Message = message.ToString(), Type = RT.Util.Dialogs.DlgType.Warning, Font = new System.Drawing.Font("Consolas", 9) }.Show();
 #endif
         }
 
