@@ -36,6 +36,7 @@ namespace RunLogged
 
         public string LastRawCommandLine { get; private set; }
         public int LastExitCode { get; private set; }
+        public bool LastAborted { get; private set; }
 
         public ProcessRunner(string[] toRun, string workingDir)
         {
@@ -81,6 +82,7 @@ namespace RunLogged
             _utf8Stdout = Encoding.UTF8.GetDecoder();
             _utf8Stderr = Encoding.UTF8.GetDecoder();
             LastExitCode = -1;
+            LastAborted = false;
 
             while (!_process.HasExited)
             {
@@ -155,7 +157,10 @@ namespace RunLogged
         public void Stop()
         {
             if (_process != null)
+            {
+                LastAborted = true;
                 _process.KillWithChildren();
+            }
         }
 
         public void WaitForExit()
