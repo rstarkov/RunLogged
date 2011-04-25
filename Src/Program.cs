@@ -188,14 +188,8 @@ namespace RunLogged
                 var result = dlg.ShowDialog();
                 if (result == DialogResult.Cancel)
                     return;
-                _runner.PauseFor(
-                    _settings.PauseForDlgSettings.IntervalType == PauseForDlg.IntervalType.Seconds ? TimeSpan.FromSeconds((double) _settings.PauseForDlgSettings.Interval) :
-                    _settings.PauseForDlgSettings.IntervalType == PauseForDlg.IntervalType.Minutes ? TimeSpan.FromMinutes((double) _settings.PauseForDlgSettings.Interval) :
-                    _settings.PauseForDlgSettings.IntervalType == PauseForDlg.IntervalType.Hours ? TimeSpan.FromHours((double) _settings.PauseForDlgSettings.Interval) :
-                    _settings.PauseForDlgSettings.IntervalType == PauseForDlg.IntervalType.Days ? TimeSpan.FromDays((double) _settings.PauseForDlgSettings.Interval) :
-                    TimeSpan.FromMilliseconds(-1)
-                );
-                if (_settings.PauseForDlgSettings.IntervalType == PauseForDlg.IntervalType.Forever)
+                _runner.PauseFor(dlg.TimeSpan);
+                if (dlg.IsIndefinite)
                     _miResume.Text = "&Resume";
                 else
                     _miResume.Text = "&Resume (automatically resumes: {0})".Fmt(_runner.PausedUntil);
