@@ -123,7 +123,12 @@ namespace RunLogged
                 batchFile.AppendLine("rd /s /q \"" + destPath + "\"");
                 var batchFilePath = Path.Combine(destPath, "RunLogged_then_delete.bat");
                 File.WriteAllText(batchFilePath, batchFile.ToString());
-                Process.Start(batchFilePath);
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = batchFilePath,
+                    CreateNoWindow = true,
+                    WindowStyle = ProcessWindowStyle.Hidden
+                });
                 return 0;
             }
 
