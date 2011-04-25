@@ -92,8 +92,8 @@ namespace RunLogged
                 _streamStdout.Dispose();
             if (_streamStderr != null)
                 _streamStderr.Dispose();
-            File.Delete(_tempStdout);
-            File.Delete(_tempStderr);
+            Ut.OnExceptionRetryThenIgnore(() => { File.Delete(_tempStdout); }, delayMs: 1000);
+            Ut.OnExceptionRetryThenIgnore(() => { File.Delete(_tempStderr); }, delayMs: 1000);
             _startInfo = null;
             _tempStdout = _tempStderr = null;
             _streamStdout = _streamStderr = null;
@@ -188,13 +188,16 @@ namespace RunLogged
 
         private void pauseProcess()
         {
-            foreach (ProcessThread thr in _process.Threads)
+            foreach (var childProcess in _process.ChildProcessIds(true).Select(pid => Process.GetProcessById(pid)).Concat(_process))
             {
-                IntPtr pThread = WinAPI.OpenThread(WinAPI.ThreadAccess.SUSPEND_RESUME, false, (uint) thr.Id);
-                if (pThread == IntPtr.Zero)
-                    continue;
-                WinAPI.SuspendThread(pThread);
-                WinAPI.CloseHandle(pThread);
+                foreach (ProcessThread thr in childProcess.Threads)
+                {
+                    IntPtr pThread = WinAPI.OpenThread(WinAPI.ThreadAccess.SUSPEND_RESUME, false, (uint) thr.Id);
+                    if (pThread == IntPtr.Zero)
+                        continue;
+                    WinAPI.SuspendThread(pThread);
+                    WinAPI.CloseHandle(pThread);
+                }
             }
         }
 
@@ -206,13 +209,16 @@ namespace RunLogged
             _pauseTimer.Dispose();
             _pauseTimer = null;
 
-            foreach (ProcessThread thr in _process.Threads)
+            foreach (var childProcess in _process.ChildProcessIds(true).Select(pid => Process.GetProcessById(pid)).Concat(_process))
             {
-                IntPtr pThread = WinAPI.OpenThread(WinAPI.ThreadAccess.SUSPEND_RESUME, false, (uint) thr.Id);
-                if (pThread == IntPtr.Zero)
-                    continue;
-                WinAPI.ResumeThread(pThread);
-                WinAPI.CloseHandle(pThread);
+                foreach (ProcessThread thr in childProcess.Threads)
+                {
+                    IntPtr pThread = WinAPI.OpenThread(WinAPI.ThreadAccess.SUSPEND_RESUME, false, (uint) thr.Id);
+                    if (pThread == IntPtr.Zero)
+                        continue;
+                    WinAPI.ResumeThread(pThread);
+                    WinAPI.CloseHandle(pThread);
+                }
             }
 
             if (ProcessResumed != null)
