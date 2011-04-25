@@ -1,16 +1,20 @@
 ﻿using System;
-using System.Linq;
+using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Net.Mail;
+using System.Reflection;
+using System.Security.AccessControl;
+using System.Security.Principal;
+using System.Text;
 using System.Threading;
 using System.Windows.Forms;
 using RT.Util;
 using RT.Util.CommandLine;
 using RT.Util.Consoles;
 using RT.Util.ExtensionMethods;
-using System.Reflection;
-using System.Diagnostics;
-using System.Text;
+using RT.Util.Controls;
+using System.Drawing;
 
 namespace RunLogged
 {
@@ -24,7 +28,9 @@ namespace RunLogged
         private static Stream _log;
         private static long _logStartOffset;
         private static Thread _readingThread;
-        private static MenuItem _miResume;
+        private static ToolStripMenuItem _miPause, _miResume;
+
+        public static Icon ProgramIcon { get { return _trayIcon == null ? null : _trayIcon.Icon; } }
 
         static int Main(string[] args)
         {
@@ -49,8 +55,13 @@ namespace RunLogged
             catch (TellUserException e)
             {
                 var message = "\n" + "Error: ".Color(ConsoleColor.Red) + e.Message;
+#if CONSOLE
                 tellUser(message);
-                return -80002;
+#else
+                if (!e.Silent)
+                    tellUser(message);
+#endif
+                return e.ReturnCode;
             }
 #if !DEBUG
             catch (Exception e)
@@ -92,6 +103,20 @@ namespace RunLogged
         private static int mainCore(string[] args)
         {
             _args = CommandLineParser<CmdLineArgs>.Parse(args);
+            Mutex mutex = null;
+
+            if (_args.MutexName != null)
+            {
+                var sid = new SecurityIdentifier(WellKnownSidType.WorldSid, null);
+                var mutexsecurity = new MutexSecurity();
+                mutexsecurity.AddAccessRule(new MutexAccessRule(sid, MutexRights.FullControl, AccessControlType.Allow));
+                mutexsecurity.AddAccessRule(new MutexAccessRule(sid, MutexRights.ChangePermissions, AccessControlType.Deny));
+                mutexsecurity.AddAccessRule(new MutexAccessRule(sid, MutexRights.Delete, AccessControlType.Deny));
+                bool created;
+                mutex = new Mutex(false, _args.MutexName, out created, mutexsecurity);
+                if (!created)
+                    throw new TellUserException("The mutex \"{0}\" is already acquired by another application.".Fmt(_args.MutexName), returnCode: -80003, silent: true);
+            }
 
             string destPath = null;
             if (_args.ShadowCopy)
@@ -165,19 +190,20 @@ namespace RunLogged
                 _trayIcon = new NotifyIcon
                 {
                     Icon = new System.Drawing.Icon(_args.TrayIcon),
-                    ContextMenu = new ContextMenu(new MenuItem[] {
-                        new MenuItem("&Pause for...", pause),
-                        (_miResume = new MenuItem("&Resume (...)", (_, __) => { _runner.ResumePausedProcess(); })),
-                        new MenuItem("&Terminate", (_, __) => { _runner.Stop(); })
-                    }),
-                    Visible = true
+                    ContextMenuStrip = new ContextMenuStrip(),
+                    Visible = true,
+                    Text = Path.GetFileName(_args.CommandToRun[0]),
                 };
-                _miResume.Visible = false;
-                _runner.ProcessResumed += () => { _miResume.Visible = false; };
+                _miPause = (ToolStripMenuItem) _trayIcon.ContextMenuStrip.Items.Add("&Pause for...", null, pause);
+                _trayIcon.ContextMenuStrip.Items.Add("E&xit", null, (_, __) => { _runner.Stop(); });
+                _trayIcon.ContextMenuStrip.Renderer = new NativeToolStripRenderer();
+                _trayIcon.ContextMenuStrip.Opening += updateResumeMenu;
+                _runner.ProcessResumed += () => { updateResumeMenu(); };
             }
 
             Application.Run();
 
+            GC.KeepAlive(mutex);
             return _runner.LastExitCode;
         }
 
@@ -189,16 +215,51 @@ namespace RunLogged
                 if (result == DialogResult.Cancel)
                     return;
                 _runner.PauseFor(dlg.TimeSpan);
-                if (dlg.IsIndefinite)
-                    _miResume.Text = "&Resume";
-                else
-                    _miResume.Text = "&Resume (automatically resumes: {0})".Fmt(_runner.PausedUntil);
-                _miResume.Visible = true;
+                updateResumeMenu();
             }
+        }
+
+        private static void updateResumeMenu(object _ = null, EventArgs __ = null)
+        {
+            if (_runner.PausedUntil == null)
+            {
+                if (_miResume != null)
+                {
+                    _trayIcon.ContextMenuStrip.Items.Remove(_miResume);
+                    _miResume = null;
+                }
+            }
+            else
+            {
+                if (_miResume == null)
+                {
+                    _miResume = new ToolStripMenuItem(
+                        "text",
+                        null,
+                        (___, ____) => { _runner.ResumePausedProcess(); });
+                    _trayIcon.ContextMenuStrip.Items.Insert(_trayIcon.ContextMenuStrip.Items.IndexOf(_miPause) + 1, _miResume);
+                }
+                _miResume.Text = "&Resume" + (_runner.PausedUntil == DateTime.MaxValue ? "" : " ({0} left)".Fmt(niceTimeSpan(_runner.PausedUntil.Value - DateTime.UtcNow)));
+            }
+        }
+
+        private static string niceTimeSpan(TimeSpan span)
+        {
+            if (span.TotalDays > 1.5)
+                return "{0:0} days".Fmt(span.TotalDays);
+            else if (span.TotalHours > 1.5)
+                return "{0:0} hours".Fmt(span.TotalHours);
+            else if (span.TotalMinutes >= 1.5)
+                return "{0:0} minutes".Fmt(span.TotalMinutes);
+            else
+                return "{0:0} seconds".Fmt(span.TotalSeconds);
         }
 
         private static void cleanup()
         {
+            if (_settings != null)
+                _settings.SaveQuiet();
+
             if (_log != null)
                 _log.Dispose();
             if (_trayIcon != null)

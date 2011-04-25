@@ -29,6 +29,10 @@ namespace RunLogged
         [DocumentationLiteral("Copies RunLogged to your user temporary directory and runs it from there. RunLogged will delete the temporary copy when exiting.")]
         public bool ShadowCopy;
 
+        [Option("--mutex")]
+        [DocumentationLiteral("Acquires a mutex with the specified name and holds it until exit. If the mutex is already acquired exits with error code -80003 (silently in the Windowless variant). Prefix with \"Global\\\" to make the mutex visible to other user accounts.")]
+        public string MutexName;
+
         [IsPositional]
         [DocumentationLiteral("Command to be executed, with arguments if any.")]
         public string[] CommandToRun;

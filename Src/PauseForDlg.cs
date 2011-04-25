@@ -68,6 +68,8 @@ namespace RunLogged
         {
             _settings = settings;
             InitializeComponent();
+            if (Program.ProgramIcon != null)
+                Icon = Program.ProgramIcon;
 
             foreach (var val in Enum.GetValues(typeof(IntervalType)))
                 cmbPauseFor.Items.Add(val);
@@ -79,11 +81,16 @@ namespace RunLogged
             numPauseFor.Value = (decimal) sel.Length;
         }
 
-        private void ok(object sender, EventArgs e)
+        private void ok(object _ = null, EventArgs __ = null)
         {
             _settings.LastSelectedInterval = new Interval { Length = (double) numPauseFor.Value, Type = (IntervalType) cmbPauseFor.SelectedItem };
             _settings.Intervals = ctList.Items.Cast<Interval>().ToList();
             DialogResult = DialogResult.OK;
+        }
+
+        private void ctList_MouseDoubleClick(object sender, MouseEventArgs e)
+        {
+            ok();
         }
 
         private void comboBoxChanged(object sender, EventArgs e)

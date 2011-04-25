@@ -163,7 +163,7 @@ namespace RunLogged
         private Timer _pauseTimer;
         private DateTime? _pauseTimerDue;
 
-        /// <summary>Gets the time at which the process will wake up again, or null if it is set to be permanently suspended until the timer is manually reset.</summary>
+        /// <summary>Gets the time at which the process will wake up again, <c>DateTime.MaxValue</c> if it is set to be permanently suspended until the timer is manually reset, or null if the process is not suspended.</summary>
         public DateTime? PausedUntil { get { return _pauseTimerDue; } }
 
         public void PauseFor(TimeSpan pauseFor)
@@ -183,7 +183,7 @@ namespace RunLogged
                 // Set a timer to wake the process up again
                 _pauseTimer = new Timer(wakeUpProcess, null, pauseFor, TimeSpan.FromMilliseconds(-1));
             }
-            _pauseTimerDue = pauseFor == TimeSpan.FromMilliseconds(-1) ? (DateTime?) null : DateTime.UtcNow + pauseFor;
+            _pauseTimerDue = pauseFor == TimeSpan.FromMilliseconds(-1) ? DateTime.MaxValue : DateTime.UtcNow + pauseFor;
         }
 
         private void pauseProcess()
