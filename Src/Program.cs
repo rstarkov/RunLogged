@@ -192,7 +192,7 @@ namespace RunLogged
                     Icon = new System.Drawing.Icon(_args.TrayIcon),
                     ContextMenuStrip = new ContextMenuStrip(),
                     Visible = true,
-                    Text = Path.GetFileName(_args.CommandToRun[0]),
+                    Text = Path.GetFileName(_args.CommandToRun[0].Split(' ').FirstOrDefault("RunLogged").SubstringSafe(0, 50)),
                 };
                 _miPause = (ToolStripMenuItem) _trayIcon.ContextMenuStrip.Items.Add("&Pause for...", null, pause);
                 _trayIcon.ContextMenuStrip.Items.Add("E&xit", null, (_, __) => { _runner.Stop(); });
