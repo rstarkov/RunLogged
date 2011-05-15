@@ -44,6 +44,9 @@
     <OutputType>WinExe</OutputType>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="EQATEC.Analytics.Monitor">
+      <HintPath>..\ThirdParty\EQATEC.Analytics.Monitor.dll</HintPath>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core">
       <RequiredTargetFramework>3.5</RequiredTargetFramework>
