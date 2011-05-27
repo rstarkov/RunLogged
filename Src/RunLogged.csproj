@@ -44,7 +44,8 @@
     <OutputType>WinExe</OutputType>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="EQATEC.Analytics.Monitor">
+    <Reference Include="EQATEC.Analytics.Monitor, Version=2.0.41.0, Culture=neutral, PublicKeyToken=213c7c68adb58a17, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
       <HintPath>..\ThirdParty\EQATEC.Analytics.Monitor.dll</HintPath>
     </Reference>
     <Reference Include="System" />
@@ -77,6 +78,10 @@
     <Compile Include="Settings.cs" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\Lib\EQATEC.Analytics\WrapEqatecAnalytics.csproj">
+      <Project>{925037D2-7001-453A-BC80-2B892AADBC41}</Project>
+      <Name>WrapEqatecAnalytics</Name>
+    </ProjectReference>
     <ProjectReference Include="..\..\RT.Util\Src\RT.Util.csproj">
       <Project>{8D0FE79C-AD8D-475C-9E6F-9CAE85365B5D}</Project>
       <Name>Util</Name>

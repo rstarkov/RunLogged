@@ -10,7 +10,6 @@ using System.Security.Principal;
 using System.Text;
 using System.Threading;
 using System.Windows.Forms;
-using EQATEC.Analytics.Monitor;
 using RT.Util;
 using RT.Util.CommandLine;
 using RT.Util.Consoles;
@@ -42,7 +41,7 @@ namespace RunLogged
             Console.OutputEncoding = System.Text.Encoding.UTF8;
 #endif
 
-            EqatecAnalytics.Settings = new AnalyticsMonitorSettings("518CC4A6EEFC454C8AE502FFF005B4CB");
+            EqatecAnalytics.Settings = new EqatecAnalyticsSettings("518CC4A6EEFC454C8AE502FFF005B4CB");
             EqatecAnalytics.ReturnOnUnhandled = -80003;
             EqatecAnalytics.UnhandledException = e =>
             {
