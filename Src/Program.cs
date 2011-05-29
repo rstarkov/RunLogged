@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
@@ -24,11 +25,14 @@ namespace RunLogged
         private static CmdLineArgs _args;
         private static string _originalCurrentDirectory;
         private static NotifyIcon _trayIcon;
+        private static string _tooltipPrefix = "", _tooltipLastLine = "";
         private static ProcessRunner _runner;
         private static Stream _log;
         private static long _logStartOffset;
         private static Thread _readingThread;
         private static ToolStripMenuItem _miPause, _miResume;
+
+        private static FileStream _shadowLock;
 
         public static Icon ProgramIcon { get { return _trayIcon == null ? null : _trayIcon.Icon; } }
 
@@ -136,13 +140,25 @@ namespace RunLogged
                 EqatecAnalytics.Monitor.TrackFeature("Feature.ShadowCopy");
                 var source = Assembly.GetExecutingAssembly();
                 int i = 0;
-                do
+                while (true)
                 {
                     i += Rnd.Next(65536);
                     destPath = Path.Combine(Path.GetTempPath(), "RunLogged-" + i);
+                    if (Directory.Exists(destPath))
+                        continue;
+                    try
+                    {
+                        Directory.CreateDirectory(destPath);
+                        _shadowLock = File.Open(Path.Combine(destPath, "lock"), FileMode.CreateNew, FileAccess.Write, FileShare.None);
+                        // Now verify that another copy of RunLogged hasn't copied itself over just before we created the directory,
+                        // which is theoretically possible
+                        var entries = Directory.GetFileSystemEntries(destPath);
+                        if (entries.Length != 1 || !entries[0].EndsWith("lock"))
+                            continue;
+                        break;
+                    }
+                    catch { }
                 }
-                while (Directory.Exists(destPath));
-                Directory.CreateDirectory(destPath);
                 var destAssembly = Path.Combine(destPath, Path.GetFileName(source.Location));
                 var newArgs = args.Where(arg => arg != "--shadowcopy").Select(arg => arg.Any(ch => "&()[]{}^=;!'+,`~ ".Contains(ch)) ? "\"" + arg + "\"" : arg).JoinString(" ");
                 File.Copy(source.Location, destAssembly);
@@ -200,13 +216,14 @@ namespace RunLogged
 
             if (_args.TrayIcon != null)
             {
+                _tooltipPrefix = Path.GetFileName(_args.CommandToRun[0].Split(' ').FirstOrDefault("RunLogged").SubstringSafe(0, 50));
                 EqatecAnalytics.Monitor.TrackFeature("Feature.TrayIcon");
                 _trayIcon = new NotifyIcon
                 {
                     Icon = new System.Drawing.Icon(_args.TrayIcon),
                     ContextMenuStrip = new ContextMenuStrip(),
                     Visible = true,
-                    Text = Path.GetFileName(_args.CommandToRun[0].Split(' ').FirstOrDefault("RunLogged").SubstringSafe(0, 50)),
+                    Text = _tooltipPrefix,
                 };
                 _miPause = (ToolStripMenuItem) _trayIcon.ContextMenuStrip.Items.Add("&Pause for...", null, pause);
                 _trayIcon.ContextMenuStrip.Items.Add("E&xit", null, (_, __) => { EqatecAnalytics.Monitor.TrackFeature("Feature.TrayMenu.Exit"); _runner.Stop(); });
@@ -353,6 +370,35 @@ namespace RunLogged
 
         private static void output(string text)
         {
+            if (_trayIcon != null)
+            {
+                _tooltipLastLine += text;
+                int backspaces = 0;
+                var chars = new List<char>();
+                for (int i = _tooltipLastLine.Length - 1; i >= 0; i--)
+                {
+                    if (_tooltipLastLine[i] == '\b')
+                        backspaces++;
+                    else
+                    {
+                        if (_tooltipLastLine[i] == '\r' || _tooltipLastLine[i] == '\n')
+                            break;
+                        if (backspaces == 0)
+                            chars.Add(_tooltipLastLine[i]);
+                        else if (_tooltipLastLine[i] < 0xDC00 || _tooltipLastLine[i] > 0xDFFF)
+                            backspaces--;
+                    }
+                }
+                chars.Reverse();
+                _tooltipLastLine = new string(chars.ToArray());
+                var tip = _tooltipPrefix + (_tooltipLastLine.Trim() == "" ? "" : (" - " + _tooltipLastLine.Trim()));
+                if (tip.Length > 63)
+                    tip = _tooltipPrefix.Replace(".exe", "") + (_tooltipLastLine.Trim() == "" ? "" : (" - " + _tooltipLastLine.Trim()));
+                if (tip.Length > 63)
+                    tip = tip.SubstringSafe(0, 60) + "...";
+                _trayIcon.Text = tip;
+            }
+
 #if CONSOLE
             Console.Write(text);
 #endif
