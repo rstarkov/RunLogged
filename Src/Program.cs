@@ -83,7 +83,7 @@ namespace RunLogged
                     EqatecAnalytics.Monitor.TrackFeature("Problem.TellUser");
                     var message = "\n" + "Error: ".Color(ConsoleColor.Red) + e.Message;
 #if CONSOLE
-                tellUser(message);
+                    tellUser(message);
 #else
                     if (!e.Silent)
                         tellUser(message);
@@ -169,20 +169,18 @@ namespace RunLogged
                         continue;
                     File.Copy(file, Path.Combine(destPath, Path.GetFileName(file)));
                 }
-                var batchFile = new StringBuilder();
-                batchFile.AppendLine("@echo off");
-                batchFile.AppendLine("\"" + destAssembly + "\" " + newArgs);
-                batchFile.AppendLine("cd \\");
-                // Note: the command that deletes the batch file needs to be the last command in the batch file.
-                batchFile.AppendLine("rd /s /q \"" + destPath + "\"");
-                var batchFilePath = Path.Combine(destPath, "RunLogged_then_delete.bat");
-                File.WriteAllText(batchFilePath, batchFile.ToString());
                 Process.Start(new ProcessStartInfo
                 {
-                    FileName = batchFilePath,
-                    CreateNoWindow = true,
-                    WindowStyle = ProcessWindowStyle.Hidden
+                    FileName = destAssembly,
+                    Arguments = "--wipe-after-shutdown \"" + destPath + "\" " + newArgs,
+                    UseShellExecute = true,
+                    // shell execute = true: a new console window will be created
+                    // shell execute = false: will attach to existing console window, but because the original process exits, this
+                    //     fools cmd.exe into becoming interactive again while RunLogged is still logging to it. This looks very broken.
+                    //     Hence the least evil seems to be to just create a new console window; it's unlikely that someone who wants
+                    //     to use RunLogged interactively would specify --shadowcopy anyway.
                 });
+
                 return 0;
             }
 
@@ -198,9 +196,13 @@ namespace RunLogged
             {
                 try { Directory.CreateDirectory(Path.GetDirectoryName(_args.LogFilename)); }
                 catch { }
-                Program._log = File.Open(_args.LogFilename, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.Read);
-                Program._log.Seek(0, SeekOrigin.End);
-                Program._logStartOffset = Program._log.Position;
+                _log = File.Open(_args.LogFilename, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.Read);
+                _log.Seek(0, SeekOrigin.End);
+                _logStartOffset = Program._log.Position;
+
+                var t = new Thread(threadLogFlusher);
+                t.IsBackground = true;
+                t.Start();
             }
             catch (Exception e)
             {
@@ -305,6 +307,28 @@ namespace RunLogged
             if (_originalCurrentDirectory != null)
                 try { Directory.SetCurrentDirectory(_originalCurrentDirectory); }
                 catch { } // the script could have theoretically CD'd out of it and deleted it, so don't crash if that happens.
+
+            if (_args != null && _args.WipeAfterShutdown != null)
+            {
+                var batchFile = new StringBuilder();
+                batchFile.AppendLine(@"@echo off");
+                batchFile.AppendLine(@":wait");
+                batchFile.AppendLine(@"set HAS=No");
+                batchFile.AppendLine(@"for /f %%A in ('tasklist /fi ""PID eq {0}"" /nh /fo csv ^|find ""{0}""') do set HAS=Yes".Fmt(Process.GetCurrentProcess().Id));
+                batchFile.AppendLine(@"ping localhost -n 2 >nul 2>nul");
+                batchFile.AppendLine(@"if '%HAS%'=='Yes' goto wait");
+                batchFile.AppendLine(@"cd \");
+                // Note: the command that deletes the batch file needs to be the last command in the batch file.
+                batchFile.AppendLine("rd /s /q \"" + _args.WipeAfterShutdown + "\"");
+                var batchFilePath = Path.Combine(_args.WipeAfterShutdown, "RunLogged_self_destruct.bat");
+                File.WriteAllText(batchFilePath, batchFile.ToString());
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = batchFilePath,
+                    CreateNoWindow = true,
+                    WindowStyle = ProcessWindowStyle.Hidden
+                });
+            }
         }
 
         private static void processCtrlC(object sender, ConsoleCancelEventArgs e)
@@ -319,17 +343,20 @@ namespace RunLogged
 
         private static void readingThread()
         {
-            if (_logStartOffset > 0)
+            lock (_log)
             {
-                for (int i = 0; i < 3; i++)
-                    _log.Write(Environment.NewLine.ToUtf8());
-                _logStartOffset = _log.Position;
+                if (_logStartOffset > 0)
+                {
+                    for (int i = 0; i < 3; i++)
+                        _log.Write(Environment.NewLine.ToUtf8());
+                    _logStartOffset = _log.Position;
+                }
+                outputLine("************************************************************************");
+                outputLine("****** RunLogged invoked at {0}".Fmt(DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")));
+                outputLine("****** Command: |{0}|".Fmt(_runner.LastRawCommandLine));
+                outputLine("****** CurDir: |{0}|".Fmt(Directory.GetCurrentDirectory()));
+                outputLine("****** LogTo: |{0}|".Fmt(_args.LogFilename));
             }
-            outputLine("************************************************************************");
-            outputLine("****** RunLogged invoked at {0}".Fmt(DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")));
-            outputLine("****** Command: |{0}|".Fmt(_runner.LastRawCommandLine));
-            outputLine("****** CurDir: |{0}|".Fmt(Directory.GetCurrentDirectory()));
-            outputLine("****** LogTo: |{0}|".Fmt(_args.LogFilename));
 
             _runner.Start();
             _runner.WaitForExit();
@@ -370,6 +397,7 @@ namespace RunLogged
 
         private static void output(string text)
         {
+            // Update the last line of the log as visible in the tray icon tooltip
             if (_trayIcon != null)
             {
                 _tooltipLastLine += text;
@@ -399,44 +427,74 @@ namespace RunLogged
                 _trayIcon.Text = tip;
             }
 
+            // Display in the real console
 #if CONSOLE
             Console.Write(text);
 #endif
-            int index;
-            while (text.Length > 0 && (index = text.IndexOf('\b')) != -1)
+
+            // Write to the log file
+            lock (_log)
             {
-                if (index > 0)
+                int index;
+                while (text.Length > 0 && (index = text.IndexOf('\b')) != -1)
                 {
-                    _log.Write(text.Substring(0, index).ToUtf8());
-                    text = text.Substring(index);
+                    if (index > 0)
+                    {
+                        _log.Write(text.Substring(0, index).ToUtf8());
+                        _logFlushNeeded.Set();
+                        text = text.Substring(index);
+                    }
+
+                    // How many backspaces are there? (and remove them)
+                    int backspaces = text.Length;
+                    text = text.TrimStart('\b');
+                    backspaces -= text.Length;
+
+                    // Try to read that many _characters_ from the stream
+                    var curPos = _log.Position;
+                    string readAgainStr;
+                    int readBytes = backspaces;
+                    while (true)
+                    {
+                        _log.Seek(curPos - readBytes, SeekOrigin.Begin);
+                        var readAgain = _log.Read(readBytes);
+                        if ((readAgain[0] & 0xc0) != 0x80 && ((readAgainStr = readAgain.FromUtf8()).Length == backspaces || readAgainStr.Contains("\n")))
+                            break;
+                        readBytes++;
+                    }
+
+                    // Don’t allow a backspace to erase a newline
+                    if ((index = readAgainStr.LastIndexOf('\n')) != -1)
+                        _log.Seek(curPos - readAgainStr.Substring(index + 1).Utf8Length(), SeekOrigin.Begin);
+                    else
+                        _log.Seek(curPos - readAgainStr.Utf8Length(), SeekOrigin.Begin);
                 }
-
-                // How many backspaces are there? (and remove them)
-                int backspaces = text.Length;
-                text = text.TrimStart('\b');
-                backspaces -= text.Length;
-
-                // Try to read that many _characters_ from the stream
-                var curPos = _log.Position;
-                string readAgainStr;
-                int readBytes = backspaces;
-                while (true)
+                if (text.Length > 0)
                 {
-                    _log.Seek(curPos - readBytes, SeekOrigin.Begin);
-                    var readAgain = _log.Read(readBytes);
-                    if ((readAgain[0] & 0xc0) != 0x80 && ((readAgainStr = readAgain.FromUtf8()).Length == backspaces || readAgainStr.Contains("\n")))
-                        break;
-                    readBytes++;
+                    _log.Write(text.ToUtf8());
+                    _logFlushNeeded.Set();
                 }
-
-                // Don’t allow a backspace to erase a newline
-                if ((index = readAgainStr.LastIndexOf('\n')) != -1)
-                    _log.Seek(curPos - readAgainStr.Substring(index + 1).Utf8Length(), SeekOrigin.Begin);
-                else
-                    _log.Seek(curPos - readAgainStr.Utf8Length(), SeekOrigin.Begin);
             }
-            if (text.Length > 0)
-                _log.Write(text.ToUtf8());
+        }
+
+        private static ManualResetEvent _logFlushNeeded = new ManualResetEvent(false);
+        private static DateTime _logLastFlush;
+
+        private static void threadLogFlusher()
+        {
+            while (true)
+            {
+                _logFlushNeeded.WaitOne();
+                var delay = _logLastFlush + TimeSpan.FromSeconds(2.5) - DateTime.UtcNow;
+                if (delay > TimeSpan.Zero)
+                    Thread.Sleep(delay);
+                lock (_log)
+                {
+                    _logFlushNeeded.Reset();
+                    _log.Flush();
+                    _logLastFlush = DateTime.UtcNow;
+                }
+            }
         }
 
         private static void outputLine(string text)

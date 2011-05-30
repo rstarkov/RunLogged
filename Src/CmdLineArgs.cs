@@ -33,6 +33,10 @@ namespace RunLogged
         [DocumentationLiteral("Acquires a mutex with the specified name and holds it until exit. If the mutex is already acquired exits with error code -80003 (silently in the Windowless variant). Prefix with \"Global\\\" to make the mutex visible to other user accounts.")]
         public string MutexName;
 
+        [Option("--wipe-after-shutdown")]
+        [Undocumented] // informs RunLogged to wipe the specified directory after it terminates - used to clear the shadow copy directory.
+        public string WipeAfterShutdown;
+
         [IsPositional]
         [DocumentationLiteral("Command to be executed, with arguments if any.")]
         public string[] CommandToRun;
