@@ -120,7 +120,7 @@ namespace RunLogged
             _args = CommandLineParser<CmdLineArgs>.Parse(args);
             Mutex mutex = null;
 
-            if (_args.MutexName != null)
+            if (_args.MutexName != null && !_args.ShadowCopy)
             {
                 EqatecAnalytics.Monitor.TrackFeature("Feature.Mutex");
                 var sid = new SecurityIdentifier(WellKnownSidType.WorldSid, null);
@@ -380,19 +380,23 @@ namespace RunLogged
         private static void emailFailureLog()
         {
             EqatecAnalytics.Monitor.TrackFeature("Feature.EmailFailure.Used");
-            var client = new SmtpClient(Program._settings.SmtpHost);
-            client.Credentials = new System.Net.NetworkCredential(Program._settings.SmtpUser, Program._settings.SmtpPasswordDecrypted);
-            var mail = new MailMessage();
-            mail.From = new MailAddress(Program._settings.SmtpFrom);
-            mail.To.Add(new MailAddress(_args.Email));
-            mail.Subject = "[RunLogged] Failure: {0}".Fmt(_runner.LastRawCommandLine.SubstringSafe(0, 50));
-            using (var log = File.Open(_args.LogFilename, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))
-            using (var logreader = new StreamReader(log))
+            string text = "<failed to read the log>";
+            try
             {
-                log.Seek(Program._logStartOffset, SeekOrigin.Begin);
-                mail.Body = logreader.ReadToEnd();
+                using (var log = File.Open(_args.LogFilename, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))
+                using (var logreader = new StreamReader(log))
+                {
+                    log.Seek(Program._logStartOffset, SeekOrigin.Begin);
+                    text = logreader.ReadToEnd();
+                }
             }
-            client.Send(mail);
+            catch { }
+            var client = new RTSmtpClient(_settings.SmtpHost, _settings.SmtpPort, _settings.SmtpUser, _settings.SmtpPasswordDecrypted, _settings.SmtpEncryption);
+            client.SendEmail(
+                from: new MailAddress(Program._settings.SmtpFrom),
+                to: new[] { new MailAddress(_args.Email) },
+                subject: "[RunLogged] Failure: {0}".Fmt(_runner.LastRawCommandLine.SubstringSafe(0, 50)),
+                plainText: text, html: null);
         }
 
         private static void output(string text)

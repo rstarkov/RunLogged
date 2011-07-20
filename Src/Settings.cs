@@ -4,7 +4,6 @@ using System.IO;
 using System.Security.Cryptography;
 using System.Text;
 using RT.Util;
-using RT.Util.Forms;
 
 namespace RunLogged
 {
@@ -12,6 +11,8 @@ namespace RunLogged
     class Settings : SettingsBase
     {
         public string SmtpHost = "example.com";
+        public int SmtpPort = 25;
+        public SmtpEncryption SmtpEncryption = SmtpEncryption.None;
         public string SmtpUser = "runlogged";
         public string SmtpFrom = "runlogged@example.com";
         private string SmtpPassword = "password";
