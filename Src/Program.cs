@@ -249,6 +249,7 @@ namespace RunLogged
             using (var dlg = new PauseForDlg(_settings.PauseForDlgSettings))
             {
                 var result = dlg.ShowDialog();
+                _settings.SaveQuiet();
                 if (result == DialogResult.Cancel)
                     return;
                 EqatecAnalytics.Monitor.TrackFeature("Feature.Pause.Start");

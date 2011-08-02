@@ -44,18 +44,26 @@ namespace RunLogged
         {
             public List<Interval> Intervals = new List<Interval>
             {
-                new Interval { Length = 10, Type = IntervalType.Seconds },
-                new Interval { Length = 30, Type = IntervalType.Seconds },
                 new Interval { Length = 1, Type = IntervalType.Minutes },
+                new Interval { Length = 2, Type = IntervalType.Minutes },
                 new Interval { Length = 5, Type = IntervalType.Minutes },
                 new Interval { Length = 10, Type = IntervalType.Minutes },
+                new Interval { Length = 15, Type = IntervalType.Minutes },
+                new Interval { Length = 20, Type = IntervalType.Minutes },
                 new Interval { Length = 30, Type = IntervalType.Minutes },
+                new Interval { Length = 45, Type = IntervalType.Minutes },
                 new Interval { Length = 1, Type = IntervalType.Hours },
                 new Interval { Length = 2, Type = IntervalType.Hours },
-                new Interval { Length = 6, Type = IntervalType.Hours },
+                new Interval { Length = 4, Type = IntervalType.Hours },
+                new Interval { Length = 8, Type = IntervalType.Hours },
                 new Interval { Length = 12, Type = IntervalType.Hours },
+                new Interval { Length = 18, Type = IntervalType.Hours },
                 new Interval { Length = 1, Type = IntervalType.Days },
+                new Interval { Length = 2, Type = IntervalType.Days },
+                new Interval { Length = 4, Type = IntervalType.Days },
                 new Interval { Length = 7, Type = IntervalType.Days },
+                new Interval { Length = 14, Type = IntervalType.Days },
+                new Interval { Length = 30, Type = IntervalType.Days },
                 new Interval { Type = IntervalType.Indefinitely },
             };
             public Interval LastSelectedInterval;
