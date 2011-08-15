@@ -185,7 +185,6 @@ namespace RunLogged
             }
 
             SettingsUtil.LoadSettings(out _settings);
-            _settings.SmtpSettings.SyncPassword();
             _settings.SaveQuiet();
 
             _originalCurrentDirectory = Directory.GetCurrentDirectory();
