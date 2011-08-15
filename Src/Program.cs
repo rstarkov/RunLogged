@@ -185,7 +185,7 @@ namespace RunLogged
             }
 
             SettingsUtil.LoadSettings(out _settings);
-            _settings.SyncPasswords();
+            _settings.SmtpSettings.SyncPassword();
             _settings.SaveQuiet();
 
             _originalCurrentDirectory = Directory.GetCurrentDirectory();
@@ -392,7 +392,7 @@ namespace RunLogged
                 }
             }
             catch { }
-            var client = new RTSmtpClient(_settings.SmtpHost, _settings.SmtpPort, _settings.SmtpUser, _settings.SmtpPasswordDecrypted, _settings.SmtpEncryption);
+            var client = new RTSmtpClient(_settings.SmtpSettings);
             client.SendEmail(
                 from: new MailAddress(Program._settings.SmtpFrom),
                 to: new[] { new MailAddress(_args.Email) },
