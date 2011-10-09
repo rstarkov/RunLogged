@@ -495,7 +495,8 @@ namespace RunLogged
                 lock (_log)
                 {
                     _logFlushNeeded.Reset();
-                    _log.Flush();
+                    try { _log.Flush(); }
+                    catch { } // the log file might have disappeared or something...
                     _logLastFlush = DateTime.UtcNow;
                 }
             }
