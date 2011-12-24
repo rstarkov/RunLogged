@@ -371,6 +371,9 @@ namespace RunLogged
                 outputLine("****** exit code: {0}".Fmt(_runner.LastExitCode));
             }
 
+            lock (_log)
+                _log.Flush();
+
             if (_runner.LastExitCode != 0 && _args.Email != null && !_runner.LastAborted)
                 emailFailureLog();
 
