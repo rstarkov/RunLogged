@@ -394,12 +394,13 @@ namespace RunLogged
                 }
             }
             catch { }
-            var client = new RTSmtpClient(_settings.SmtpSettings);
-            client.SendEmail(
-                from: new MailAddress(Program._settings.SmtpFrom),
+            Emailer.SendEmail(
                 to: new[] { new MailAddress(_args.Email) },
-                subject: "[RunLogged] Failure: {0}".Fmt(_runner.LastRawCommandLine.SubstringSafe(0, 50)),
-                plainText: text, html: null);
+                subject: "Failure: {0}".Fmt(_runner.LastRawCommandLine.SubstringSafe(0, 50)),
+                bodyPlain: text,
+                account: _settings.EmailerAccount,
+                fromName: "RunLogged"
+			);
         }
 
         private static void output(string text)
