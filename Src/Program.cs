@@ -73,7 +73,7 @@ namespace RunLogged
                 {
                     EqatecAnalytics.Monitor.TrackFeature("Problem.CommandLineParse");
                     var message = "\n" + e.GenerateHelp(null, wrapToWidth());
-                    if (!e.WasCausedByHelpRequest())
+                    if (!e.WasCausedByHelpRequest)
                         message += "\n" + e.GenerateErrorText(null, wrapToWidth());
                     tellUser(message);
                     return -80001;
