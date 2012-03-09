@@ -195,7 +195,7 @@ namespace RunLogged
             {
                 try { Directory.CreateDirectory(Path.GetDirectoryName(_args.LogFilename)); }
                 catch { }
-                _log = File.Open(_args.LogFilename, FileMode.Append, FileAccess.ReadWrite, FileShare.Read);
+                _log = File.Open(_args.LogFilename, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.Read);
                 _logStartOffset = Program._log.Position;
 
                 var t = new Thread(threadLogFlusher);
