@@ -66,6 +66,11 @@ namespace RunLogged
             {
                 try
                 {
+                    if (args.Length == 1 && args[0] == "/?")
+                    {
+                        tellUser(CommandLineParser<CmdLineArgs>.GenerateHelp(wrapWidth: wrapToWidth()));
+                        return -80002;
+                    }
                     var result = mainCore(args);
                     return result;
                 }
@@ -196,7 +201,8 @@ namespace RunLogged
                 try { Directory.CreateDirectory(Path.GetDirectoryName(_args.LogFilename)); }
                 catch { }
                 _log = File.Open(_args.LogFilename, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.Read);
-                _logStartOffset = Program._log.Position;
+                _log.Seek(0, SeekOrigin.End);
+                _logStartOffset = _log.Position;
 
                 var t = new Thread(threadLogFlusher);
                 t.IsBackground = true;
@@ -399,7 +405,7 @@ namespace RunLogged
                 bodyPlain: text,
                 account: _settings.EmailerAccount,
                 fromName: "RunLogged"
-			);
+            );
         }
 
         private static void output(string text)
