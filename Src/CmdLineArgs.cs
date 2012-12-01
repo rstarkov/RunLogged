@@ -1,6 +1,7 @@
 ﻿using System;
 using System.IO;
 using RT.Util.CommandLine;
+using RT.Util.Consoles;
 using RT.Util.ExtensionMethods;
 
 namespace RunLogged
@@ -41,7 +42,7 @@ namespace RunLogged
         [DocumentationLiteral("Command to be executed, with arguments if any.")]
         public string[] CommandToRun;
 
-        public string Validate()
+        public ConsoleColoredString Validate()
         {
             if (CommandToRun.Length == 0)
                 return "You must specify the command to be executed (CommandToRun).";
