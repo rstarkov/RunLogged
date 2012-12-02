@@ -56,12 +56,7 @@ namespace RunLogged
         private IEnumerable<string> escapeCmdline(IEnumerable<string> args)
         {
             foreach (var arg in args)
-            {
-                string newarg = arg;
-                if (arg.Contains(" "))
-                    newarg = "\"" + arg + "\"";
-                yield return newarg;
-            }
+                yield return arg.Contains(" ") ? "\"" + arg + "\"" : arg;
         }
 
         private void thread()
