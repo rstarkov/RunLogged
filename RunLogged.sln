@@ -5,8 +5,6 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RunLogged", "Src\RunLogged.
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Util", "..\RT.Util\Src\RT.Util.csproj", "{8D0FE79C-AD8D-475C-9E6F-9CAE85365B5D}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WrapEqatecAnalytics", "Lib\EQATEC.Analytics\WrapEqatecAnalytics.csproj", "{925037D2-7001-453A-BC80-2B892AADBC41}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		DebugConsole|Any CPU = DebugConsole|Any CPU
@@ -31,14 +29,6 @@ Global
 		{8D0FE79C-AD8D-475C-9E6F-9CAE85365B5D}.ReleaseConsole|Any CPU.Build.0 = Release|Any CPU
 		{8D0FE79C-AD8D-475C-9E6F-9CAE85365B5D}.ReleaseWindowless|Any CPU.ActiveCfg = Release|Any CPU
 		{8D0FE79C-AD8D-475C-9E6F-9CAE85365B5D}.ReleaseWindowless|Any CPU.Build.0 = Release|Any CPU
-		{925037D2-7001-453A-BC80-2B892AADBC41}.DebugConsole|Any CPU.ActiveCfg = Debug|Any CPU
-		{925037D2-7001-453A-BC80-2B892AADBC41}.DebugConsole|Any CPU.Build.0 = Debug|Any CPU
-		{925037D2-7001-453A-BC80-2B892AADBC41}.DebugWindowless|Any CPU.ActiveCfg = Debug|Any CPU
-		{925037D2-7001-453A-BC80-2B892AADBC41}.DebugWindowless|Any CPU.Build.0 = Debug|Any CPU
-		{925037D2-7001-453A-BC80-2B892AADBC41}.ReleaseConsole|Any CPU.ActiveCfg = Release|Any CPU
-		{925037D2-7001-453A-BC80-2B892AADBC41}.ReleaseConsole|Any CPU.Build.0 = Release|Any CPU
-		{925037D2-7001-453A-BC80-2B892AADBC41}.ReleaseWindowless|Any CPU.ActiveCfg = Release|Any CPU
-		{925037D2-7001-453A-BC80-2B892AADBC41}.ReleaseWindowless|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

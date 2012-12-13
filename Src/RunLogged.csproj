@@ -78,10 +78,6 @@
     <Compile Include="Settings.cs" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Lib\EQATEC.Analytics\WrapEqatecAnalytics.csproj">
-      <Project>{925037D2-7001-453A-BC80-2B892AADBC41}</Project>
-      <Name>WrapEqatecAnalytics</Name>
-    </ProjectReference>
     <ProjectReference Include="..\..\RT.Util\Src\RT.Util.csproj">
       <Project>{8D0FE79C-AD8D-475C-9E6F-9CAE85365B5D}</Project>
       <Name>Util</Name>

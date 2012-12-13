@@ -45,47 +45,18 @@ namespace RunLogged
             Console.OutputEncoding = System.Text.Encoding.UTF8;
 #endif
 
-            EqatecAnalytics.Settings = new EqatecAnalyticsSettings("518CC4A6EEFC454C8AE502FFF005B4CB");
-            EqatecAnalytics.ReturnOnUnhandled = -80003;
-            EqatecAnalytics.UnhandledException = e =>
+            return Ut.RunMain(() =>
             {
-                var message = "\n" + "An internal error has occurred in RunLogged: ".Color(ConsoleColor.Red);
-                foreach (var ex in e.SelectChain(ex => ex.InnerException))
-                {
-                    message += "\n" + ex.GetType().Name.Color(ConsoleColor.Yellow) + ": " + ex.Message.Color(ConsoleColor.White);
-                    message += "\n" + ex.StackTrace;
-                }
-                tellUser(message);
-            };
-#if CONSOLE
-            EqatecAnalytics.RunKind = "Runs.Console";
-#else
-            EqatecAnalytics.RunKind = "Runs.Windowless";
-#endif
-            return EqatecAnalytics.RunMain(() =>
-            {
+                _args = CommandLineParser<CmdLineArgs>.ParseOrWriteUsageToConsole(args);
+                if (_args == null)
+                    return -80002;
                 try
                 {
-                    if (args.Length == 1 && args[0] == "/?")
-                    {
-                        tellUser(CommandLineParser<CmdLineArgs>.GenerateHelp(wrapWidth: wrapToWidth()));
-                        return -80002;
-                    }
                     var result = mainCore(args);
                     return result;
                 }
-                catch (CommandLineParseException e)
-                {
-                    EqatecAnalytics.Monitor.TrackFeature("Problem.CommandLineParse");
-                    var message = "\n" + e.GenerateHelp(null, wrapToWidth());
-                    if (!e.WasCausedByHelpRequest)
-                        message += "\n" + e.GenerateErrorText(null, wrapToWidth());
-                    tellUser(message);
-                    return -80001;
-                }
                 catch (TellUserException e)
                 {
-                    EqatecAnalytics.Monitor.TrackFeature("Problem.TellUser");
                     var message = "\n" + "Error: ".Color(ConsoleColor.Red) + e.Message;
 #if CONSOLE
                     tellUser(message);
@@ -99,6 +70,17 @@ namespace RunLogged
                 {
                     cleanup();
                 }
+            },
+            e =>
+            {
+                var message = "\n" + "An internal error has occurred in RunLogged: ".Color(ConsoleColor.Red);
+                foreach (var ex in e.SelectChain(ex => ex.InnerException))
+                {
+                    message += "\n" + ex.GetType().Name.Color(ConsoleColor.Yellow) + ": " + ex.Message.Color(ConsoleColor.White);
+                    message += "\n" + ex.StackTrace;
+                }
+                tellUser(message);
+                return -80003;
             });
         }
 
@@ -122,12 +104,10 @@ namespace RunLogged
 
         private static int mainCore(string[] args)
         {
-            _args = CommandLineParser<CmdLineArgs>.Parse(args);
             Mutex mutex = null;
 
             if (_args.MutexName != null && !_args.ShadowCopy)
             {
-                EqatecAnalytics.Monitor.TrackFeature("Feature.Mutex");
                 var sid = new SecurityIdentifier(WellKnownSidType.WorldSid, null);
                 var mutexsecurity = new MutexSecurity();
                 mutexsecurity.AddAccessRule(new MutexAccessRule(sid, MutexRights.FullControl, AccessControlType.Allow));
@@ -142,7 +122,6 @@ namespace RunLogged
             string destPath = null;
             if (_args.ShadowCopy)
             {
-                EqatecAnalytics.Monitor.TrackFeature("Feature.ShadowCopy");
                 var source = Assembly.GetExecutingAssembly();
                 int i = 0;
                 while (true)
@@ -223,7 +202,6 @@ namespace RunLogged
             if (_args.TrayIcon != null)
             {
                 _tooltipPrefix = Path.GetFileName(_args.CommandToRun[0].Split(' ').FirstOrDefault("RunLogged").SubstringSafe(0, 50));
-                EqatecAnalytics.Monitor.TrackFeature("Feature.TrayIcon");
                 _trayIcon = new NotifyIcon
                 {
                     Icon = new System.Drawing.Icon(_args.TrayIcon),
@@ -232,14 +210,11 @@ namespace RunLogged
                     Text = _tooltipPrefix,
                 };
                 _miPause = (ToolStripMenuItem) _trayIcon.ContextMenuStrip.Items.Add("&Pause for...", null, pause);
-                _trayIcon.ContextMenuStrip.Items.Add("E&xit", null, (_, __) => { EqatecAnalytics.Monitor.TrackFeature("Feature.TrayMenu.Exit"); _runner.Stop(); });
+                _trayIcon.ContextMenuStrip.Items.Add("E&xit", null, (_, __) => { _runner.Stop(); });
                 _trayIcon.ContextMenuStrip.Renderer = new NativeToolStripRenderer();
                 _trayIcon.ContextMenuStrip.Opening += updateResumeMenu;
                 _runner.ProcessResumed += () => { updateResumeMenu(); };
             }
-
-            if (_args.Email != null)
-                EqatecAnalytics.Monitor.TrackFeature("Feature.EmailFailure.Activated");
 
             Application.Run();
 
@@ -249,15 +224,12 @@ namespace RunLogged
 
         private static void pause(object _ = null, EventArgs __ = null)
         {
-            EqatecAnalytics.Monitor.TrackFeature("Feature.TrayMenu.Pause");
             using (var dlg = new PauseForDlg(_settings.PauseForDlgSettings))
             {
                 var result = dlg.ShowDialog();
                 _settings.SaveQuiet();
                 if (result == DialogResult.Cancel)
                     return;
-                EqatecAnalytics.Monitor.TrackFeature("Feature.Pause.Start");
-                EqatecAnalytics.Monitor.TrackFeatureValue("Feature.Pause.Time", (long) dlg.TimeSpan.TotalSeconds);
                 _runner.PauseFor(dlg.TimeSpan);
                 updateResumeMenu();
             }
@@ -280,7 +252,7 @@ namespace RunLogged
                     _miResume = new ToolStripMenuItem(
                         "text",
                         null,
-                        (___, ____) => { EqatecAnalytics.Monitor.TrackFeature("Feature.TrayMenu.Resume"); _runner.ResumePausedProcess(); });
+                        (___, ____) => { _runner.ResumePausedProcess(); });
                     _trayIcon.ContextMenuStrip.Items.Insert(_trayIcon.ContextMenuStrip.Items.IndexOf(_miPause) + 1, _miResume);
                 }
                 _miResume.Text = "&Resume" + (_runner.PausedUntil == DateTime.MaxValue ? "" : " ({0} left)".Fmt(niceTimeSpan(_runner.PausedUntil.Value - DateTime.UtcNow)));
@@ -338,7 +310,6 @@ namespace RunLogged
 
         private static void processCtrlC(object sender, ConsoleCancelEventArgs e)
         {
-            EqatecAnalytics.Monitor.TrackFeature("Feature.CtrlC");
             if (_runner != null)
                 _runner.Stop();
             if (_readingThread != null)
@@ -387,7 +358,6 @@ namespace RunLogged
 
         private static void emailFailureLog()
         {
-            EqatecAnalytics.Monitor.TrackFeature("Feature.EmailFailure.Used");
             string text = "<failed to read the log>";
             try
             {
