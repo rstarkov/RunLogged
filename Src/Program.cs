@@ -319,6 +319,7 @@ namespace RunLogged
 
         private static void readingThread()
         {
+            var startTime = DateTime.UtcNow;
             lock (_log)
             {
                 if (_logStartOffset > 0)
@@ -328,7 +329,7 @@ namespace RunLogged
                     _logStartOffset = _log.Position;
                 }
                 outputLine("************************************************************************");
-                outputLine("****** RunLogged invoked at {0}".Fmt(DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")));
+                outputLine("****** RunLogged invoked at {0}".Fmt(startTime.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss")));
                 outputLine("****** Command: |{0}|".Fmt(_runner.LastRawCommandLine));
                 outputLine("****** CurDir: |{0}|".Fmt(Directory.GetCurrentDirectory()));
                 outputLine("****** LogTo: |{0}|".Fmt(_args.LogFilename));
@@ -337,13 +338,14 @@ namespace RunLogged
             _runner.Start();
             _runner.WaitForExit();
 
+            var endTime = DateTime.UtcNow;
             if (_runner.LastAborted)
             {
-                outputLine("****** aborted at {0}".Fmt(DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")));
+                outputLine("****** aborted at {0} (ran for {1:#,0.0} seconds)".Fmt(endTime.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss"), (endTime - startTime).TotalSeconds));
             }
             else
             {
-                outputLine("****** completed at {0}".Fmt(DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")));
+                outputLine("****** completed at {0} (ran for {1:#,0.0} seconds)".Fmt(endTime.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss"), (endTime - startTime).TotalSeconds));
                 outputLine("****** exit code: {0}".Fmt(_runner.LastExitCode));
             }
 
