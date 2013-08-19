@@ -72,7 +72,6 @@
     <Compile Include="PauseForDlg.Designer.cs">
       <DependentUpon>PauseForDlg.cs</DependentUpon>
     </Compile>
-    <Compile Include="ProcessRunner.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Settings.cs" />

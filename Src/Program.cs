@@ -26,7 +26,7 @@ namespace RunLogged
         private static string _originalCurrentDirectory;
         private static NotifyIcon _trayIcon;
         private static string _tooltipPrefix = "", _tooltipLastLine = "";
-        private static ProcessRunner _runner;
+        private static CommandRunner _runner;
         private static Stream _log;
         private static long _logStartOffset;
         private static Thread _readingThread;
@@ -192,7 +192,9 @@ namespace RunLogged
                 throw new TellUserException("Could not open the log file for writing. File \"{0}\".\n{1}".Fmt(_args.LogFilename, e.Message));
             }
 
-            _runner = new ProcessRunner(_args.CommandToRun, Directory.GetCurrentDirectory());
+            _runner = new CommandRunner();
+            _runner.SetCommand(_args.CommandToRun);
+            _runner.WorkingDirectory = Directory.GetCurrentDirectory();
             _runner.StdoutText += runner_StdoutText;
             _runner.StderrText += runner_StderrText;
 
@@ -210,16 +212,16 @@ namespace RunLogged
                     Text = _tooltipPrefix,
                 };
                 _miPause = (ToolStripMenuItem) _trayIcon.ContextMenuStrip.Items.Add("&Pause for...", null, pause);
-                _trayIcon.ContextMenuStrip.Items.Add("E&xit", null, (_, __) => { _runner.Stop(); });
+                _trayIcon.ContextMenuStrip.Items.Add("E&xit", null, (_, __) => { _runner.Abort(); });
                 _trayIcon.ContextMenuStrip.Renderer = new NativeToolStripRenderer();
                 _trayIcon.ContextMenuStrip.Opening += updateResumeMenu;
-                _runner.ProcessResumed += () => { updateResumeMenu(); };
+                _runner.CommandResumed += () => { updateResumeMenu(); };
             }
 
             Application.Run();
 
             GC.KeepAlive(mutex);
-            return _runner.LastExitCode;
+            return _runner.ExitCode;
         }
 
         private static void pause(object _ = null, EventArgs __ = null)
@@ -230,7 +232,7 @@ namespace RunLogged
                 _settings.SaveQuiet();
                 if (result == DialogResult.Cancel)
                     return;
-                _runner.PauseFor(dlg.TimeSpan);
+                _runner.Pause(dlg.TimeSpan);
                 updateResumeMenu();
             }
         }
@@ -252,7 +254,7 @@ namespace RunLogged
                     _miResume = new ToolStripMenuItem(
                         "text",
                         null,
-                        (___, ____) => { _runner.ResumePausedProcess(); });
+                        (___, ____) => { _runner.ResumePaused(); });
                     _trayIcon.ContextMenuStrip.Items.Insert(_trayIcon.ContextMenuStrip.Items.IndexOf(_miPause) + 1, _miResume);
                 }
                 _miResume.Text = "&Resume" + (_runner.PausedUntil == DateTime.MaxValue ? "" : " ({0} left)".Fmt(niceTimeSpan(_runner.PausedUntil.Value - DateTime.UtcNow)));
@@ -311,7 +313,7 @@ namespace RunLogged
         private static void processCtrlC(object sender, ConsoleCancelEventArgs e)
         {
             if (_runner != null)
-                _runner.Stop();
+                _runner.Abort();
             if (_readingThread != null)
                 _readingThread.Join();
             cleanup(); // must do this because Ctrl+C ends the program without running "finally" clauses...
@@ -330,29 +332,29 @@ namespace RunLogged
                 }
                 outputLine("************************************************************************");
                 outputLine("****** RunLogged invoked at {0}".Fmt(startTime.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss")));
-                outputLine("****** Command: |{0}|".Fmt(_runner.LastRawCommandLine));
+                outputLine("****** Command: |{0}|".Fmt(_runner.Command));
                 outputLine("****** CurDir: |{0}|".Fmt(Directory.GetCurrentDirectory()));
                 outputLine("****** LogTo: |{0}|".Fmt(_args.LogFilename));
             }
 
             _runner.Start();
-            _runner.WaitForExit();
+            _runner.EndedWaitHandle.WaitOne();
 
             var endTime = DateTime.UtcNow;
-            if (_runner.LastAborted)
+            if (_runner.State == CommandRunnerState.Aborted)
             {
                 outputLine("****** aborted at {0} (ran for {1:#,0.0} seconds)".Fmt(endTime.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss"), (endTime - startTime).TotalSeconds));
             }
             else
             {
                 outputLine("****** completed at {0} (ran for {1:#,0.0} seconds)".Fmt(endTime.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss"), (endTime - startTime).TotalSeconds));
-                outputLine("****** exit code: {0}".Fmt(_runner.LastExitCode));
+                outputLine("****** exit code: {0}".Fmt(_runner.ExitCode));
             }
 
             lock (_log)
                 _log.Flush();
 
-            if (_runner.LastExitCode != 0 && _args.Email != null && !_runner.LastAborted)
+            if (_runner.ExitCode != 0 && _args.Email != null && _runner.State != CommandRunnerState.Aborted)
                 emailFailureLog();
 
             Application.Exit();
@@ -373,7 +375,7 @@ namespace RunLogged
             catch { }
             Emailer.SendEmail(
                 to: new[] { new MailAddress(_args.Email) },
-                subject: "Failure: {0}".Fmt(_runner.LastRawCommandLine.SubstringSafe(0, 50)),
+                subject: "Failure: {0}".Fmt(_runner.Command.SubstringSafe(0, 50)),
                 bodyPlain: text,
                 account: _settings.EmailerAccount,
                 fromName: "RunLogged"
