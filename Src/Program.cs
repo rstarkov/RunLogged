@@ -221,7 +221,7 @@ namespace RunLogged
             Application.Run();
 
             GC.KeepAlive(mutex);
-            return _runner.ExitCode;
+            return _runner.State == CommandRunnerState.Aborted ? -1 : _runner.ExitCode;
         }
 
         private static void pause(object _ = null, EventArgs __ = null)
@@ -354,7 +354,7 @@ namespace RunLogged
             lock (_log)
                 _log.Flush();
 
-            if (_runner.ExitCode != 0 && _args.Email != null && _runner.State != CommandRunnerState.Aborted)
+            if (_runner.State != CommandRunnerState.Aborted && _runner.ExitCode != 0 && _args.Email != null)
                 emailFailureLog();
 
             Application.Exit();
