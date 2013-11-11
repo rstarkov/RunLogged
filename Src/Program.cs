@@ -47,7 +47,7 @@ namespace RunLogged
 
             return Ut.RunMain(() =>
             {
-                _args = CommandLineParser<CmdLineArgs>.ParseOrWriteUsageToConsole(args);
+                _args = CommandLineParser.ParseOrWriteUsageToConsole<CmdLineArgs>(args);
                 if (_args == null)
                     return -80002;
                 try
