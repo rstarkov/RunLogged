@@ -66,6 +66,7 @@
   <ItemGroup>
     <Compile Include="CmdLineArgs.cs" />
     <Compile Include="Exceptions.cs" />
+    <Compile Include="ExitCode.cs" />
     <Compile Include="PauseForDlg.cs">
       <SubType>Form</SubType>
     </Compile>

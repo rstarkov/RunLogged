@@ -34,7 +34,7 @@ namespace RunLogged
         public bool ShadowCopy;
 
         [Option("--mutex")]
-        [Documentation("Acquires a mutex with the specified name and holds it until exit. If the mutex is already acquired, exits with error code -80003 (silently in the Windowless variant). Prefix with \"{h}Global\\{}\" to make the mutex visible to other user accounts.")]
+        [Documentation("Acquires a mutex with the specified name and holds it until exit. If the mutex is already acquired, exits with error code -80001 (silently in the Windowless variant). Prefix with \"{h}Global\\{}\" to make the mutex visible to other user accounts.")]
         public string MutexName;
 
         [Option("--success-codes")]
@@ -46,7 +46,7 @@ namespace RunLogged
         public string FailureCodes;
 
         [Option("--indicate-success")]
-        [DocumentationRhoML("By default, RunLogged exits with the same status code as the specified command. RunLogged can also exit with error codes in the range {h}-80000{} to {h}-80099{} to indicate that the command didn't finish (or didn't even start).\n\nIf this option is specified, RunLogged will not pass through the comamnd's exit code, and will instead exit with {h}0{} (success) or {h}1{} (failure) when the specified command finishes, or one of {h}-800xx{} codes otherwise. See {option}--success-codes{} for details on what determines success.")]
+        [DocumentationRhoML("By default, RunLogged exits with the same status code as the specified command. RunLogged can also exit with error codes in the range {h}-80000{} to {h}-80999{} to indicate that the command didn't finish (or didn't even start).\n\nIf this option is specified, RunLogged will not pass through the comamnd's exit code, and will instead exit with {h}0{} (success) or {h}1{} (failure) when the specified command finishes, or one of {h}-80xxx{} codes otherwise. See {option}--success-codes{} for details on what determines success.")]
         public bool IndicateSuccess;
 
         [Option("--wipe-after-shutdown")]

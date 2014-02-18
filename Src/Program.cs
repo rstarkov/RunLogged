@@ -30,7 +30,7 @@ namespace RunLogged
         private static Stream _log;
         private static long _logStartOffset;
         private static Thread _readingThread;
-        private static int _readingThreadExitCode = -80009;
+        private static int _readingThreadExitCode = ExitCode.ErrorInternal;
         private static ToolStripMenuItem _miPause, _miResume;
 
         private static FileStream _shadowLock;
@@ -50,7 +50,7 @@ namespace RunLogged
             {
                 _args = CommandLineParser.ParseOrWriteUsageToConsole<CmdLineArgs>(args);
                 if (_args == null)
-                    return -80002;
+                    return ExitCode.ErrorParsingCommandLine;
                 try
                 {
                     var result = mainCore(args);
@@ -81,7 +81,7 @@ namespace RunLogged
                     message += "\n" + ex.StackTrace;
                 }
                 tellUser(message);
-                return -80003;
+                return ExitCode.ErrorInternal;
             });
         }
 
@@ -117,7 +117,7 @@ namespace RunLogged
                 bool created;
                 mutex = new Mutex(false, _args.MutexName, out created, mutexsecurity);
                 if (!created)
-                    throw new TellUserException("The mutex \"{0}\" is already acquired by another application.".Fmt(_args.MutexName), returnCode: -80003, silent: true);
+                    throw new TellUserException("The mutex \"{0}\" is already acquired by another application.".Fmt(_args.MutexName), returnCode: ExitCode.MutexInUse, silent: true);
             }
 
             string destPath = null;
@@ -190,7 +190,7 @@ namespace RunLogged
             }
             catch (Exception e)
             {
-                throw new TellUserException("Could not open the log file for writing. File \"{0}\".\n{1}".Fmt(_args.LogFilename, e.Message));
+                throw new TellUserException("Could not open the log file for writing. File \"{0}\".\n{1}".Fmt(_args.LogFilename, e.Message), returnCode: ExitCode.CannotOpenLogFile);
             }
 
             _runner = new CommandRunner();
@@ -345,7 +345,7 @@ namespace RunLogged
             if (_runner.State == CommandRunnerState.Aborted)
             {
                 outputLine("****** aborted at {0} (ran for {1:#,0.0} seconds)".Fmt(endTime.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss"), (endTime - startTime).TotalSeconds));
-                _readingThreadExitCode = -1;
+                _readingThreadExitCode = ExitCode.Aborted;
             }
             else
             {
@@ -365,7 +365,7 @@ namespace RunLogged
                     emailFailureLog();
                 }
 
-                _readingThreadExitCode = _args.IndicateSuccess ? (success ? 0 : 1) : _runner.ExitCode;
+                _readingThreadExitCode = _args.IndicateSuccess ? (success ? ExitCode.Success : ExitCode.Failure) : _runner.ExitCode;
             }
 
             lock (_log)
