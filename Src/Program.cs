@@ -30,6 +30,7 @@ namespace RunLogged
         private static Stream _log;
         private static long _logStartOffset;
         private static Thread _readingThread;
+        private static int _readingThreadExitCode = -80009;
         private static ToolStripMenuItem _miPause, _miResume;
 
         private static FileStream _shadowLock;
@@ -221,7 +222,7 @@ namespace RunLogged
             Application.Run();
 
             GC.KeepAlive(mutex);
-            return _runner.State == CommandRunnerState.Aborted ? -1 : _runner.ExitCode;
+            return _readingThreadExitCode;
         }
 
         private static void pause(object _ = null, EventArgs __ = null)
@@ -331,7 +332,7 @@ namespace RunLogged
                     _logStartOffset = _log.Position;
                 }
                 outputLine("************************************************************************");
-                outputLine("****** RunLogged invoked at {0}".Fmt(startTime.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss")));
+                outputLine("****** RunLogged v{1} invoked at {0}".Fmt(startTime.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss"), Ut.VersionOfExe()));
                 outputLine("****** Command: |{0}|".Fmt(_runner.Command));
                 outputLine("****** CurDir: |{0}|".Fmt(Directory.GetCurrentDirectory()));
                 outputLine("****** LogTo: |{0}|".Fmt(_args.LogFilename));
@@ -344,18 +345,31 @@ namespace RunLogged
             if (_runner.State == CommandRunnerState.Aborted)
             {
                 outputLine("****** aborted at {0} (ran for {1:#,0.0} seconds)".Fmt(endTime.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss"), (endTime - startTime).TotalSeconds));
+                _readingThreadExitCode = -1;
             }
             else
             {
                 outputLine("****** completed at {0} (ran for {1:#,0.0} seconds)".Fmt(endTime.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss"), (endTime - startTime).TotalSeconds));
-                outputLine("****** exit code: {0}".Fmt(_runner.ExitCode));
+
+                bool success = _runner.ExitCode == 0;
+                if (_args.SuccessCodesParsed != null)
+                    success = _args.SuccessCodesParsed.Any(range => _runner.ExitCode >= range.Item1 && _runner.ExitCode <= range.Item2);
+                else if (_args.FailureCodesParsed != null)
+                    success = !_args.FailureCodesParsed.Any(range => _runner.ExitCode >= range.Item1 && _runner.ExitCode <= range.Item2);
+
+                outputLine("****** exit code: {0} ({1})".Fmt(_runner.ExitCode, success ? "success" : "failure"));
+
+                if (!success && _args.Email != null)
+                {
+                    outputLine("****** emailing failure log");
+                    emailFailureLog();
+                }
+
+                _readingThreadExitCode = _args.IndicateSuccess ? (success ? 0 : 1) : _runner.ExitCode;
             }
 
             lock (_log)
                 _log.Flush();
-
-            if (_runner.State != CommandRunnerState.Aborted && _runner.ExitCode != 0 && _args.Email != null)
-                emailFailureLog();
 
             Application.Exit();
         }
@@ -365,6 +379,9 @@ namespace RunLogged
             string text = "<failed to read the log>";
             try
             {
+                lock (_log)
+                    _log.Flush();
+
                 using (var log = File.Open(_args.LogFilename, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))
                 using (var logreader = new StreamReader(log))
                 {
