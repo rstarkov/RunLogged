@@ -174,7 +174,8 @@ namespace RunLogged
 
             _originalCurrentDirectory = Directory.GetCurrentDirectory();
 
-            Console.CancelKeyPress += processCtrlC;
+            Console.CancelKeyPress += (_, __) => { processCtrlC(); };
+            WinAPI.SetConsoleCtrlHandler(_ => { processCtrlC(); return true; }, true);
 
             try
             {
@@ -311,7 +312,7 @@ namespace RunLogged
             }
         }
 
-        private static void processCtrlC(object sender, ConsoleCancelEventArgs e)
+        private static void processCtrlC()
         {
             if (_runner != null)
                 _runner.Abort();
