@@ -24,12 +24,14 @@
     <Optimize>false</Optimize>
     <DefineConstants>DEBUG;TRACE;CONSOLE</DefineConstants>
     <OutputType>Exe</OutputType>
+    <Merge>False</Merge>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'ReleaseConsole|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
     <Optimize>true</Optimize>
     <DefineConstants>TRACE;CONSOLE</DefineConstants>
     <OutputType>Exe</OutputType>
+    <Merge>RunLoggedC.exe</Merge>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'DebugWindowless|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -37,6 +39,7 @@
     <DebugType>full</DebugType>
     <PlatformTarget>AnyCPU</PlatformTarget>
     <OutputType>WinExe</OutputType>
+    <Merge>False</Merge>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'ReleaseWindowless|AnyCPU' ">
     <DefineConstants>TRACE</DefineConstants>
@@ -44,6 +47,7 @@
     <DebugType>pdbonly</DebugType>
     <PlatformTarget>AnyCPU</PlatformTarget>
     <OutputType>WinExe</OutputType>
+    <Merge>RunLoggedW.exe</Merge>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="RT.Util, Version=1.0.1569.0, Culture=neutral, processorArchitecture=MSIL">
@@ -88,11 +92,9 @@
     <None Include="packages.config" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
-  <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
-       Other similar extension points exist, see Microsoft.Common.targets.
-  <Target Name="BeforeBuild">
-  </Target>
   <Target Name="AfterBuild">
+    <Exec Condition="'$(Merge)' != 'False'"
+          WorkingDirectory="$(OutputPath)"
+          Command="&quot;..\..\packages\ILRepack.2.0.12\tools\ILRepack.exe&quot; /out:Merged\$(Merge) RunLogged.exe RT.Util.dll" />
   </Target>
-  -->
 </Project>
