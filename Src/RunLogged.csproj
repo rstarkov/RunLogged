@@ -50,8 +50,8 @@
     <Merge>RunLoggedW.exe</Merge>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="RT.Util, Version=1.0.1569.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\RT.Util.1.0.1569\lib\net45\RT.Util.dll</HintPath>
+    <Reference Include="RT.Util, Version=1.0.1570.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\packages\RT.Util.1.0.1570\lib\net45\RT.Util.dll</HintPath>
       <Private>True</Private>
     </Reference>
     <Reference Include="System" />
@@ -93,8 +93,6 @@
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <Target Name="AfterBuild">
-    <Exec Condition="'$(Merge)' != 'False'"
-          WorkingDirectory="$(OutputPath)"
-          Command="&quot;..\..\packages\ILRepack.2.0.12\tools\ILRepack.exe&quot; /out:Merged\$(Merge) RunLogged.exe RT.Util.dll" />
+    <Exec Condition="'$(Merge)' != 'False'" WorkingDirectory="$(OutputPath)" Command="&quot;..\..\packages\ILRepack.2.0.12\tools\ILRepack.exe&quot; /out:Merged\$(Merge) RunLogged.exe RT.Util.dll" />
   </Target>
 </Project>
