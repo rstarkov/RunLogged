@@ -176,22 +176,23 @@ class Program
         Console.CancelKeyPress += (_, __) => { processCtrlC(); };
         WinAPI.SetConsoleCtrlHandler(_ => { processCtrlC(); return true; }, true);
 
-        try
-        {
-            try { Directory.CreateDirectory(Path.GetDirectoryName(_args.LogFilename)); }
-            catch { }
-            _log = File.Open(_args.LogFilename, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.Read);
-            _log.Seek(0, SeekOrigin.End);
-            _logStartOffset = _log.Position;
+        if (_args.LogFilename != null)
+            try
+            {
+                try { Directory.CreateDirectory(Path.GetDirectoryName(_args.LogFilename)); }
+                catch { }
+                _log = File.Open(_args.LogFilename, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.Read);
+                _log.Seek(0, SeekOrigin.End);
+                _logStartOffset = _log.Position;
 
-            var t = new Thread(threadLogFlusher);
-            t.IsBackground = true;
-            t.Start();
-        }
-        catch (Exception e)
-        {
-            throw new TellUserException("Could not open the log file for writing. File \"{0}\".\n{1}".Fmt(_args.LogFilename, e.Message), returnCode: ExitCode.CannotOpenLogFile);
-        }
+                var t = new Thread(threadLogFlusher);
+                t.IsBackground = true;
+                t.Start();
+            }
+            catch (Exception e)
+            {
+                throw new TellUserException("Could not open the log file for writing. File \"{0}\".\n{1}".Fmt(_args.LogFilename, e.Message), returnCode: ExitCode.CannotOpenLogFile);
+            }
 
         _runner = new CommandRunner();
         _runner.SetCommand(_args.CommandToRun);
@@ -323,9 +324,9 @@ class Program
     private static void readingThread()
     {
         var startTime = DateTime.UtcNow;
-        lock (_log)
+        lock (_log ?? new object()) // if logging is disabled then we don't care about the log
         {
-            if (_logStartOffset > 0)
+            if (_log != null && _logStartOffset > 0)
             {
                 for (int i = 0; i < 3; i++)
                     _log.Write(Environment.NewLine.ToUtf8());
@@ -333,9 +334,9 @@ class Program
             }
             outputLine("************************************************************************");
             outputLine("****** RunLogged v{1} invoked at {0}".Fmt(startTime.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss"), Ut.VersionOfExe()));
-            outputLine("****** Command: |{0}|".Fmt(_runner.Command));
-            outputLine("****** CurDir: |{0}|".Fmt(Directory.GetCurrentDirectory()));
-            outputLine("****** LogTo: |{0}|".Fmt(_args.LogFilename));
+            outputLine($"****** Command: |{_runner.Command}|");
+            outputLine($"****** CurDir: |{Directory.GetCurrentDirectory()}|");
+            outputLine($"****** LogTo: {(_args.LogFilename == null ? "<none>" : $"|{_args.LogFilename}|")}");
         }
 
         if (_args.MaxDurationSeconds != null)
@@ -343,7 +344,7 @@ class Program
             var aborterThread = new Thread(() =>
             {
                 Thread.Sleep(TimeSpan.FromSeconds(_args.MaxDurationSeconds.Value));
-                outputLine($"****** time limit of { _args.MaxDurationSeconds.Value:#,0} seconds reached; aborting.");
+                outputLine($"****** time limit of {_args.MaxDurationSeconds.Value:#,0} seconds reached; aborting.");
                 _runner.Abort();
             });
             aborterThread.IsBackground = true; // kill thread on process exit
@@ -385,28 +386,30 @@ class Program
             _readingThreadExitCode = _args.IndicateSuccess ? (success ? ExitCode.Success : ExitCode.Failure) : _runner.ExitCode;
         }
 
-        lock (_log)
-            _log.Flush();
+        if (_log != null)
+            lock (_log)
+                _log.Flush();
 
         Application.Exit();
     }
 
     private static void emailFailureLog()
     {
-        string text = "<failed to read the log>";
-        try
-        {
-            lock (_log)
-                _log.Flush();
-
-            using (var log = File.Open(_args.LogFilename, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))
-            using (var logreader = new StreamReader(log))
+        string text = _args.LogFilename == null ? "<log not available as file logging was disabled>" : "<failed to read the log>";
+        if (_args.LogFilename != null)
+            try
             {
-                log.Seek(Program._logStartOffset, SeekOrigin.Begin);
-                text = logreader.ReadToEnd();
+                lock (_log)
+                    _log.Flush();
+
+                using (var log = File.Open(_args.LogFilename, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))
+                using (var logreader = new StreamReader(log))
+                {
+                    log.Seek(Program._logStartOffset, SeekOrigin.Begin);
+                    text = logreader.ReadToEnd();
+                }
             }
-        }
-        catch { }
+            catch { }
         Emailer.SendEmail(
             to: new[] { new MailAddress(_args.Email) },
             subject: "Failure: {0}".Fmt(_runner.Command.SubstringSafe(0, 50)),
@@ -454,48 +457,49 @@ class Program
 #endif
 
         // Write to the log file
-        lock (_log)
-        {
-            int index;
-            while (text.Length > 0 && (index = text.IndexOf('\b')) != -1)
+        if (_log != null)
+            lock (_log)
             {
-                if (index > 0)
+                int index;
+                while (text.Length > 0 && (index = text.IndexOf('\b')) != -1)
                 {
-                    _log.Write(text.Substring(0, index).ToUtf8());
+                    if (index > 0)
+                    {
+                        _log.Write(text.Substring(0, index).ToUtf8());
+                        _logFlushNeeded.Set();
+                        text = text.Substring(index);
+                    }
+
+                    // How many backspaces are there? (and remove them)
+                    int backspaces = text.Length;
+                    text = text.TrimStart('\b');
+                    backspaces -= text.Length;
+
+                    // Try to read that many _characters_ from the stream
+                    var curPos = _log.Position;
+                    string readAgainStr;
+                    int readBytes = backspaces;
+                    while (true)
+                    {
+                        _log.Seek(curPos - readBytes, SeekOrigin.Begin);
+                        var readAgain = _log.Read(readBytes);
+                        if ((readAgain[0] & 0xc0) != 0x80 && ((readAgainStr = readAgain.FromUtf8()).Length == backspaces || readAgainStr.Contains("\n")))
+                            break;
+                        readBytes++;
+                    }
+
+                    // Don’t allow a backspace to erase a newline
+                    if ((index = readAgainStr.LastIndexOf('\n')) != -1)
+                        _log.Seek(curPos - readAgainStr.Substring(index + 1).Utf8Length(), SeekOrigin.Begin);
+                    else
+                        _log.Seek(curPos - readAgainStr.Utf8Length(), SeekOrigin.Begin);
+                }
+                if (text.Length > 0)
+                {
+                    _log.Write(text.ToUtf8());
                     _logFlushNeeded.Set();
-                    text = text.Substring(index);
                 }
-
-                // How many backspaces are there? (and remove them)
-                int backspaces = text.Length;
-                text = text.TrimStart('\b');
-                backspaces -= text.Length;
-
-                // Try to read that many _characters_ from the stream
-                var curPos = _log.Position;
-                string readAgainStr;
-                int readBytes = backspaces;
-                while (true)
-                {
-                    _log.Seek(curPos - readBytes, SeekOrigin.Begin);
-                    var readAgain = _log.Read(readBytes);
-                    if ((readAgain[0] & 0xc0) != 0x80 && ((readAgainStr = readAgain.FromUtf8()).Length == backspaces || readAgainStr.Contains("\n")))
-                        break;
-                    readBytes++;
-                }
-
-                // Don’t allow a backspace to erase a newline
-                if ((index = readAgainStr.LastIndexOf('\n')) != -1)
-                    _log.Seek(curPos - readAgainStr.Substring(index + 1).Utf8Length(), SeekOrigin.Begin);
-                else
-                    _log.Seek(curPos - readAgainStr.Utf8Length(), SeekOrigin.Begin);
             }
-            if (text.Length > 0)
-            {
-                _log.Write(text.ToUtf8());
-                _logFlushNeeded.Set();
-            }
-        }
     }
 
     private static ManualResetEvent _logFlushNeeded = new ManualResetEvent(false);
