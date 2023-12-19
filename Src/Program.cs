@@ -342,6 +342,18 @@ namespace RunLogged
                 outputLine("****** LogTo: |{0}|".Fmt(_args.LogFilename));
             }
 
+            if (_args.MaxDurationSeconds != null)
+            {
+                var aborterThread = new Thread(() =>
+                {
+                    Thread.Sleep(TimeSpan.FromSeconds(_args.MaxDurationSeconds.Value));
+                    outputLine($"****** time limit of { _args.MaxDurationSeconds.Value:#,0} seconds reached; aborting.");
+                    _runner.Abort();
+                });
+                aborterThread.IsBackground = true; // kill thread on process exit
+                aborterThread.Start();
+            }
+
             _runner.Start();
             _runner.EndedWaitHandle.WaitOne();
 
@@ -350,6 +362,11 @@ namespace RunLogged
             {
                 outputLine("****** aborted at {0} (ran for {1:#,0.0} seconds)".Fmt(endTime.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss"), (endTime - startTime).TotalSeconds));
                 _readingThreadExitCode = ExitCode.Aborted;
+                if (_args.Email != null)
+                {
+                    outputLine("****** emailing failure log");
+                    emailFailureLog();
+                }
             }
             else
             {

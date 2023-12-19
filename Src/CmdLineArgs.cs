@@ -49,6 +49,10 @@ namespace RunLogged
         [DocumentationRhoML("By default, RunLogged exits with the same status code as the specified command. RunLogged can also exit with error codes in the range {h}-80000{} to {h}-80999{} to indicate that the command didn't finish (or didn't even start).\n\nIf this option is specified, RunLogged will not pass through the comamnd's exit code, and will instead exit with {h}0{} (success) or {h}1{} (failure) when the specified command finishes, or one of {h}-80xxx{} codes otherwise. See {option}--success-codes{} for details on what determines success.")]
         public bool IndicateSuccess;
 
+        [Option("--max-duration-sec")]
+        [DocumentationRhoML("Specifies the maximum duration for the process to run. If not finished within the specified time, the process is aborted and a failure is reported.")]
+        public int? MaxDurationSeconds;
+
         [Option("--wipe-after-shutdown")]
         [Undocumented] // informs RunLogged to wipe the specified directory after it terminates - used to clear the shadow copy directory.
         public string WipeAfterShutdown;
