@@ -33,10 +33,10 @@ jobs:
         run: dotnet restore
 
       - name: "dotnet publish Console: ${{ env.VER_STR }}"
-        run: dotnet publish --configuration ReleaseConsole -p:InformationalVersion="${{env.VER_STR}}" -p:Version=${{env.VER_NUM}} -p:FileVersion=${{env.VER_NUM}} -p:AssemblyVersion=${{env.VER_NUM}} -o Publish
+        run: dotnet publish Src\RunLogged.csproj --configuration ReleaseConsole -p:InformationalVersion="${{env.VER_STR}}" -p:Version=${{env.VER_NUM}} -p:FileVersion=${{env.VER_NUM}} -p:AssemblyVersion=${{env.VER_NUM}} -o Publish
 
       - name: "dotnet publish Windowless: ${{ env.VER_STR }}"
-        run: dotnet publish --configuration ReleaseWindowless -p:InformationalVersion="${{env.VER_STR}}" -p:Version=${{env.VER_NUM}} -p:FileVersion=${{env.VER_NUM}} -p:AssemblyVersion=${{env.VER_NUM}} -o Publish
+        run: dotnet publish Src\RunLogged.csproj --configuration ReleaseWindowless -p:InformationalVersion="${{env.VER_STR}}" -p:Version=${{env.VER_NUM}} -p:FileVersion=${{env.VER_NUM}} -p:AssemblyVersion=${{env.VER_NUM}} -o Publish
 
       - name: Upload artifact
         uses: actions/upload-artifact@v3

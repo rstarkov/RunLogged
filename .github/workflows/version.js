@@ -6,7 +6,7 @@ module.exports = ({ context, github }) => {
     const verGitRevs = execSync('git rev-list 8a657a55.. --count').toString().trim();
 
     function formatVersion(template) {
-        template = template.replaceAll("$(yyyy)", d.getYear().toString());
+        template = template.replaceAll("$(yyyy)", (d.getYear() + 1900).toString());
         template = template.replaceAll("$(yy)", (d.getYear() % 100).toString().padStart(2, '0'));
         template = template.replaceAll("$(mm)", (d.getMonth() + 1).toString().padStart(2, '0'));
         template = template.replaceAll("$(dd)", d.getDate().toString().padStart(2, '0'));
