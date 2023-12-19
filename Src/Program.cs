@@ -531,11 +531,15 @@ namespace RunLogged
 
         static void runner_StdoutText(string data)
         {
+            if (data == "")
+                return;
             output(data);
         }
 
         static void runner_StderrText(string data)
         {
+            if (data == "")
+                return;
             output("STDERR: ");
             output(data);
         }
