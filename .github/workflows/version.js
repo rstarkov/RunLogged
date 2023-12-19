@@ -1,9 +1,9 @@
-module.exports = ({ context, github }) => {
+module.exports = ({ context, github, firstRev }) => {
     const { execSync } = require('child_process');
     const fs = require('fs');
 
     const d = new Date();
-    const verGitRevs = execSync('git rev-list 8a657a55.. --count').toString().trim();
+    const verGitRevs = !firstRev ? '0' : execSync(`git rev-list ${firstRev}.. --count`).toString().trim();
 
     function formatVersion(template) {
         template = template.replaceAll("$(yyyy)", (d.getYear() + 1900).toString());
@@ -31,15 +31,8 @@ module.exports = ({ context, github }) => {
         fs.writeFileSync(filename, str);
     }
 
-    const verStr = formatVersion(`1.$(GitRevCount)-$(GitSha6) [$(GitBranch)/$(yyyy)-$(mm)-$(dd)]`);
-    const verNum = formatVersion(`1.$(GitRevCount).0`);
-
-    console.log(`Version string: ${verStr}`);
-    console.log(`Version number: ${verNum}`);
-
     return {
-        verStr,
-        verNum,
+        formatVersion,
         updateJson,
         updateText,
     };

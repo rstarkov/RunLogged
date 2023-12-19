@@ -19,10 +19,12 @@ jobs:
         with:
           script: |
             const script = require(require('path').resolve('./.github/workflows/version.js'))
-            const vs = script({ context, github });
-            core.exportVariable('VER_STR', vs.verStr);
-            core.exportVariable('VER_NUM', vs.verNum);
-            vs.updateText('Src/CmdLineArgs.cs', 'Version [dev]', `Version ${vs.verStr}`);
+            const vs = script({ context, github, firstRev: '8a657a55' });
+            const verStr = vs.formatVersion(`1.$(GitRevCount)-$(GitSha6) [$(GitBranch)/$(yyyy)-$(mm)-$(dd)]`);
+            const verNum = vs.formatVersion(`1.$(GitRevCount)`);
+            core.exportVariable('VER_STR', verStr);
+            core.exportVariable('VER_NUM', verNum);
+            vs.updateText('Src/CmdLineArgs.cs', 'Version [dev]', `Version ${verStr}`);
 
       - name: Install dotnet
         uses: actions/setup-dotnet@v3
