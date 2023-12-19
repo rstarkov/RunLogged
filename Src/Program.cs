@@ -11,8 +11,9 @@ using System.Security.Principal;
 using System.Text;
 using System.Threading;
 using System.Windows.Forms;
+using RT.CommandLine;
+using RT.Serialization.Settings;
 using RT.Util;
-using RT.Util.CommandLine;
 using RT.Util.Consoles;
 using RT.Util.Controls;
 using RT.Util.ExtensionMethods;
@@ -21,6 +22,7 @@ namespace RunLogged
 {
     class Program
     {
+        private static SettingsFile<Settings> _settingsFile;
         private static Settings _settings;
         private static CmdLineArgs _args;
         private static string _originalCurrentDirectory;
@@ -99,7 +101,7 @@ namespace RunLogged
 #if CONSOLE
             ConsoleUtil.WriteLine(message);
 #else
-            new RT.Util.Dialogs.DlgMessage() { Message = message.ToString(), Type = RT.Util.Dialogs.DlgType.Warning, Font = new System.Drawing.Font("Consolas", 9) }.Show();
+            new RT.Util.Forms.DlgMessage() { Message = message.ToString(), Type = RT.Util.Forms.DlgType.Warning, Font = new System.Drawing.Font("Consolas", 9) }.Show();
 #endif
         }
 
@@ -169,8 +171,9 @@ namespace RunLogged
                 return 0;
             }
 
-            SettingsUtil.LoadSettings(out _settings);
-            _settings.SaveQuiet();
+            _settingsFile = new SettingsFileXml<Settings>("RunLogged", SettingsLocation.MachineLocal);
+            _settings = _settingsFile.Settings;
+            _settingsFile.Save();
 
             _originalCurrentDirectory = Directory.GetCurrentDirectory();
 
@@ -231,7 +234,7 @@ namespace RunLogged
             using (var dlg = new PauseForDlg(_settings.PauseForDlgSettings))
             {
                 var result = dlg.ShowDialog();
-                _settings.SaveQuiet();
+                _settingsFile.Save();
                 if (result == DialogResult.Cancel)
                     return;
                 _runner.Pause(dlg.TimeSpan);
@@ -278,7 +281,7 @@ namespace RunLogged
         private static void cleanup()
         {
             if (_settings != null)
-                _settings.SaveQuiet();
+                _settingsFile.Save();
 
             if (_log != null)
                 _log.Dispose();

@@ -2,8 +2,8 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Text.RegularExpressions;
+using RT.CommandLine;
 using RT.Util;
-using RT.Util.CommandLine;
 using RT.Util.Consoles;
 using RT.Util.ExtensionMethods;
 

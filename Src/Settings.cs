@@ -8,8 +8,7 @@ using RT.Util.ExtensionMethods;
 
 namespace RunLogged
 {
-    [Settings("RunLogged", SettingsKind.MachineSpecific)]
-    class Settings : SettingsBase
+    class Settings
     {
         public string EmailerAccount = null;
         public PauseForDlg.Settings PauseForDlgSettings = new PauseForDlg.Settings();
