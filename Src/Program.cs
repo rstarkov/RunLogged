@@ -117,7 +117,7 @@ namespace RunLogged
                 mutexsecurity.AddAccessRule(new MutexAccessRule(sid, MutexRights.ChangePermissions, AccessControlType.Deny));
                 mutexsecurity.AddAccessRule(new MutexAccessRule(sid, MutexRights.Delete, AccessControlType.Deny));
                 bool created;
-                mutex = new Mutex(false, _args.MutexName, out created, mutexsecurity);
+                mutex = MutexAcl.Create(false, _args.MutexName, out created, mutexsecurity);
                 if (!created)
                     throw new TellUserException("The mutex \"{0}\" is already acquired by another application.".Fmt(_args.MutexName), returnCode: ExitCode.MutexInUse, silent: true);
             }
@@ -146,12 +146,12 @@ namespace RunLogged
                     }
                     catch { }
                 }
-                var destAssembly = Path.Combine(destPath, Path.GetFileName(source.Location));
+                var destAssembly = Path.Combine(destPath, Path.GetFileName(Environment.ProcessPath));
                 var newArgs = args.Where(arg => arg != "--shadowcopy").Select(arg => arg.Any(ch => "&()[]{}^=;!'+,`~ ".Contains(ch)) ? "\"" + arg + "\"" : arg).JoinString(" ");
-                File.Copy(source.Location, destAssembly);
+                File.Copy(Environment.ProcessPath, destAssembly);
                 foreach (var dep in source.GetReferencedAssemblies())
                 {
-                    var file = new[] { ".dll", ".exe" }.Select(ext => Path.Combine(Path.GetDirectoryName(source.Location), dep.Name + ext)).FirstOrDefault(fn => File.Exists(fn));
+                    var file = new[] { ".dll", ".exe" }.Select(ext => Path.Combine(Path.GetDirectoryName(Environment.ProcessPath), dep.Name + ext)).FirstOrDefault(fn => File.Exists(fn));
                     if (file == null)
                         continue;
                     File.Copy(file, Path.Combine(destPath, Path.GetFileName(file)));
@@ -298,7 +298,7 @@ namespace RunLogged
                 batchFile.AppendLine(@"@echo off");
                 batchFile.AppendLine(@":wait");
                 batchFile.AppendLine(@"set HAS=No");
-                batchFile.AppendLine(@"for /f %%A in ('tasklist /fi ""PID eq {0}"" /nh /fo csv ^|find ""{0}""') do set HAS=Yes".Fmt(Process.GetCurrentProcess().Id));
+                batchFile.AppendLine(@"for /f %%A in ('tasklist /fi ""PID eq {0}"" /nh /fo csv ^|find ""{0}""') do set HAS=Yes".Fmt(Environment.ProcessId));
                 batchFile.AppendLine(@"ping localhost -n 2 >nul 2>nul");
                 batchFile.AppendLine(@"if '%HAS%'=='Yes' goto wait");
                 batchFile.AppendLine(@"cd \");

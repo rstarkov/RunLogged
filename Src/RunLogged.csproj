@@ -1,126 +1,36 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
-<Project ToolsVersion="12.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <Import Project="..\packages\ILRepack.2.0.16\build\ILRepack.props" Condition="Exists('..\packages\ILRepack.2.0.16\build\ILRepack.props')" />
+<Project Sdk="Microsoft.NET.Sdk">
+
   <PropertyGroup>
-    <Configuration Condition=" '$(Configuration)' == '' ">DebugConsole</Configuration>
-    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProductVersion>9.0.30729</ProductVersion>
-    <SchemaVersion>2.0</SchemaVersion>
-    <ProjectGuid>{2F9AA366-D5E7-41D5-84C9-5E6F2BE47BB1}</ProjectGuid>
-    <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>RunLogged</RootNamespace>
-    <AssemblyName>RunLogged</AssemblyName>
-    <TargetFrameworkVersion>v4.8.1</TargetFrameworkVersion>
-    <FileAlignment>512</FileAlignment>
-    <OutputPath>..\Builds\$(Configuration)</OutputPath>
-    <BaseIntermediateOutputPath>..\Builds\$(Configuration)\obj-$(AssemblyName)</BaseIntermediateOutputPath>
-    <IntermediateOutputPath>..\Builds\$(Configuration)\obj-$(AssemblyName)</IntermediateOutputPath>
-    <TargetFrameworkProfile>
-    </TargetFrameworkProfile>
-    <Prefer32Bit>false</Prefer32Bit>
-    <NuGetPackageImportStamp>
-    </NuGetPackageImportStamp>
-  </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'DebugConsole|AnyCPU' ">
-    <DebugSymbols>true</DebugSymbols>
-    <DebugType>full</DebugType>
-    <Optimize>false</Optimize>
-    <DefineConstants>DEBUG;TRACE;CONSOLE</DefineConstants>
-    <OutputType>Exe</OutputType>
-    <Merge>False</Merge>
-  </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'ReleaseConsole|AnyCPU' ">
-    <DebugType>pdbonly</DebugType>
-    <Optimize>true</Optimize>
-    <DefineConstants>TRACE;CONSOLE</DefineConstants>
-    <OutputType>Exe</OutputType>
-    <Merge>RunLoggedC.exe</Merge>
-  </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'DebugWindowless|AnyCPU' ">
-    <DebugSymbols>true</DebugSymbols>
-    <DefineConstants>DEBUG;TRACE</DefineConstants>
-    <DebugType>full</DebugType>
-    <PlatformTarget>AnyCPU</PlatformTarget>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>disable</Nullable>
+    <UseWindowsForms>true</UseWindowsForms>
+
     <OutputType>WinExe</OutputType>
-    <Merge>False</Merge>
+    <AssemblyName>RunLoggedW</AssemblyName>
+
+    <PublishSingleFile>true</PublishSingleFile>
+    <SelfContained>false</SelfContained>
+    <Configurations>DebugConsole;DebugWindowless;ReleaseConsole;ReleaseWindowless</Configurations>
+    <Platforms>AnyCPU</Platforms>
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>embedded</DebugType>
   </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'ReleaseWindowless|AnyCPU' ">
-    <DefineConstants>TRACE</DefineConstants>
-    <Optimize>true</Optimize>
-    <DebugType>pdbonly</DebugType>
-    <PlatformTarget>AnyCPU</PlatformTarget>
-    <OutputType>WinExe</OutputType>
-    <Merge>RunLoggedW.exe</Merge>
+  
+  <PropertyGroup Condition=" '$(Configuration)' == 'DebugConsole' Or '$(Configuration)' == 'DebugWindowless' ">
+    <DefineConstants>$(DefineConstants);DEBUG</DefineConstants>
   </PropertyGroup>
+  
+  <PropertyGroup Condition=" '$(Configuration)' == 'DebugConsole' Or '$(Configuration)' == 'ReleaseConsole' ">
+    <OutputType>Exe</OutputType>
+    <AssemblyName>RunLoggedC</AssemblyName>
+    <DefineConstants>$(DefineConstants);CONSOLE</DefineConstants>
+  </PropertyGroup>
+
   <ItemGroup>
-    <Reference Include="Microsoft.CSharp" />
-    <Reference Include="RT.CommandLine, Version=2.0.1755.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\RT.CommandLine.2.0.1755\lib\netstandard2.0\RT.CommandLine.dll</HintPath>
-    </Reference>
-    <Reference Include="RT.Lingo.Base, Version=2.0.1755.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\RT.Lingo.Base.2.0.1755\lib\netstandard2.0\RT.Lingo.Base.dll</HintPath>
-    </Reference>
-    <Reference Include="RT.PostBuild, Version=2.0.1755.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\RT.PostBuild.2.0.1755\lib\netstandard2.0\RT.PostBuild.dll</HintPath>
-    </Reference>
-    <Reference Include="RT.Serialization, Version=2.0.1755.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\RT.Serialization.2.0.1755\lib\netstandard2.0\RT.Serialization.dll</HintPath>
-    </Reference>
-    <Reference Include="RT.Serialization.Xml, Version=2.0.1755.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\RT.Serialization.Xml.2.0.1755\lib\netstandard2.0\RT.Serialization.Xml.dll</HintPath>
-    </Reference>
-    <Reference Include="RT.Util, Version=2.0.1755.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\RT.Util.2.0.1755\lib\net472\RT.Util.dll</HintPath>
-    </Reference>
-    <Reference Include="RT.Util.Core, Version=2.0.1755.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\RT.Util.Core.2.0.1755\lib\netstandard2.0\RT.Util.Core.dll</HintPath>
-    </Reference>
-    <Reference Include="System" />
-    <Reference Include="System.Core">
-      <RequiredTargetFramework>3.5</RequiredTargetFramework>
-    </Reference>
-    <Reference Include="System.Drawing" />
-    <Reference Include="System.Windows.Forms" />
-    <Reference Include="System.Xml.Linq">
-      <RequiredTargetFramework>3.5</RequiredTargetFramework>
-    </Reference>
-    <Reference Include="System.Data.DataSetExtensions">
-      <RequiredTargetFramework>3.5</RequiredTargetFramework>
-    </Reference>
-    <Reference Include="System.Data" />
-    <Reference Include="System.Xml" />
+    <PackageReference Include="RT.CommandLine" Version="2.0.1755" />
+    <PackageReference Include="RT.Serialization.Xml" Version="2.0.1755" />
+    <PackageReference Include="RT.Util" Version="2.0.1755" />
   </ItemGroup>
-  <ItemGroup>
-    <Compile Include="CmdLineArgs.cs" />
-    <Compile Include="Exceptions.cs" />
-    <Compile Include="ExitCode.cs" />
-    <Compile Include="PauseForDlg.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="PauseForDlg.Designer.cs">
-      <DependentUpon>PauseForDlg.cs</DependentUpon>
-    </Compile>
-    <Compile Include="Program.cs" />
-    <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="Settings.cs" />
-  </ItemGroup>
-  <ItemGroup>
-    <EmbeddedResource Include="PauseForDlg.resx">
-      <DependentUpon>PauseForDlg.cs</DependentUpon>
-    </EmbeddedResource>
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="app.config" />
-    <None Include="packages.config" />
-  </ItemGroup>
-  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
-  <Target Name="AfterBuild">
-    <Exec Condition="'$(Merge)' != 'False'" WorkingDirectory="$(OutputPath)" Command="&quot;$(ILRepack)&quot; /out:Merged\$(Merge) RunLogged.exe RT.Util.dll" />
-  </Target>
-  <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
-    <PropertyGroup>
-      <ErrorText>This project references NuGet package(s) that are missing on this computer. Use NuGet Package Restore to download them.  For more information, see http://go.microsoft.com/fwlink/?LinkID=322105. The missing file is {0}.</ErrorText>
-    </PropertyGroup>
-    <Error Condition="!Exists('..\packages\ILRepack.2.0.16\build\ILRepack.props')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\ILRepack.2.0.16\build\ILRepack.props'))" />
-  </Target>
+  
 </Project>
