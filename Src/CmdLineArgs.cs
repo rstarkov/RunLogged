@@ -7,7 +7,7 @@ using RT.Util.ExtensionMethods;
 namespace RunLogged;
 
 [CommandLine]
-[DocumentationRhoML(@"Runs the specified command and logs all the output to a timestamped log file.")]
+[DocumentationRhoML("{h}RunLogged{}\nVersion [dev]\n\nRuns the specified command and logs all the output to a timestamped log file.")]
 class CmdLineArgs : ICommandLineValidatable
 {
     [Option("--cd")]

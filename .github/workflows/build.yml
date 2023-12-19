@@ -1,0 +1,46 @@
+name: build
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Prepare version
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const script = require(require('path').resolve('./.github/workflows/version.js'))
+            const vs = script({ context, github });
+            core.exportVariable('VER_STR', vs.verStr);
+            core.exportVariable('VER_NUM', vs.verNum);
+            vs.updateText('Src/CmdLineArgs.cs', 'Version [dev]', `Version ${vs.verStr}`);
+
+      - name: Install dotnet
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: '8.x'
+
+      - name: dotnet restore
+        run: dotnet restore
+
+      - name: "dotnet publish Console: ${{ env.VER_STR }}"
+        run: dotnet publish --configuration ReleaseConsole -p:InformationalVersion="${{env.VER_STR}}" -p:Version=${{env.VER_NUM}} -p:FileVersion=${{env.VER_NUM}} -p:AssemblyVersion=${{env.VER_NUM}} -o Publish
+
+      - name: "dotnet publish Windowless: ${{ env.VER_STR }}"
+        run: dotnet publish --configuration ReleaseWindowless -p:InformationalVersion="${{env.VER_STR}}" -p:Version=${{env.VER_NUM}} -p:FileVersion=${{env.VER_NUM}} -p:AssemblyVersion=${{env.VER_NUM}} -o Publish
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: RunLogged-v${{env.VER_STR}}
+          path: Publish
+          if-no-files-found: error
