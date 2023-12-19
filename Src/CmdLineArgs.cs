@@ -6,57 +6,57 @@ using RT.Util.ExtensionMethods;
 
 namespace RunLogged;
 
+[CommandLine]
 [DocumentationRhoML(@"Runs the specified command and logs all the output to a timestamped log file.")]
 class CmdLineArgs : ICommandLineValidatable
 {
-#pragma warning disable 649 // Field is never assigned to, and will always have its default value null
     [Option("--cd")]
     [Documentation("Optionally changes the working directory while executing the command.")]
-    public string WorkingDir;
+    public string WorkingDir = null;
 
     [Option("--log")]
     [DocumentationRhoML("Log file name pattern. May be relative to {option}--cd{} {field}WorkingDir{}. The timestamp YYYY-MM-DD is substituted in place of any occurrences of \"{{}\" in {field}LogFilename{}.\n\nWhere the {option}--log{} argument is not specified, the log filename will be constructed from the command to be executed, a timestamp and a .log extension.\n\nIf the log file already exists, it will be appended to. The directory to contain the log file is created automatically if necessary.")]
-    public string LogFilename;
+    public string LogFilename = null;
 
     [Option("--email")]
     [DocumentationRhoML("If the specified command doesn't succeed, send the log to this email address. See also {option}--success-codes{}. Other email-related settings should be configured in the settings file at {h}%ProgramData%\\RunLogged{}.")]
-    public string Email;
+    public string Email = null;
 
     [Option("--trayicon")]
     [Documentation("Shows a tray icon while the specified command is running, with options to abort the command, pause its execution, and view the last log line in a tooltip. Specifies the path and filename of an ico file to use for the tray icon.")]
-    public string TrayIcon;
+    public string TrayIcon = null;
 
     [Option("--shadowcopy")]
     [Documentation("Copies RunLogged to your user temporary directory and runs it from there. RunLogged will delete the temporary copy when exiting.")]
-    public bool ShadowCopy;
+    public bool ShadowCopy = false;
 
     [Option("--mutex")]
     [Documentation("Acquires a mutex with the specified name and holds it until exit. If the mutex is already acquired, exits with error code -80001 (silently in the Windowless variant). Prefix with \"{h}Global\\{}\" to make the mutex visible to other user accounts.")]
-    public string MutexName;
+    public string MutexName = null;
 
     [Option("--success-codes")]
     [DocumentationRhoML("Specifies which exit codes of the specified command are to be treated as success. Example: \"{h}0,3,5-7,9{}\", or \"{h}0,-1{}\" for negative codes. If specified, all other codes are treated as failure. By default, only {h}0{} is considered a success. See also {option}--failure-codes{}.")]
-    public string SuccessCodes;
+    public string SuccessCodes = null;
 
     [Option("--failure-codes")]
     [DocumentationRhoML("Specifies which exit codes of the specified command are to be treated as failure. If specified, all other codes are treated as success.")]
-    public string FailureCodes;
+    public string FailureCodes = null;
 
     [Option("--indicate-success")]
     [DocumentationRhoML("By default, RunLogged exits with the same status code as the specified command. RunLogged can also exit with error codes in the range {h}-80000{} to {h}-80999{} to indicate that the command didn't finish (or didn't even start).\n\nIf this option is specified, RunLogged will not pass through the comamnd's exit code, and will instead exit with {h}0{} (success) or {h}1{} (failure) when the specified command finishes, or one of {h}-80xxx{} codes otherwise. See {option}--success-codes{} for details on what determines success.")]
-    public bool IndicateSuccess;
+    public bool IndicateSuccess = false;
 
     [Option("--max-duration-sec")]
     [DocumentationRhoML("Specifies the maximum duration for the process to run. If not finished within the specified time, the process is aborted and a failure is reported.")]
-    public int? MaxDurationSeconds;
+    public int? MaxDurationSeconds = null;
 
     [Option("--wipe-after-shutdown")]
     [Undocumented] // informs RunLogged to wipe the specified directory after it terminates - used to clear the shadow copy directory.
-    public string WipeAfterShutdown;
+    public string WipeAfterShutdown = null;
 
     [IsPositional]
     [Documentation("Command to be executed, with arguments if any.")]
-    public string[] CommandToRun;
+    public string[] CommandToRun = [];
 
     [Ignore]
     public List<Tuple<int, int>> SuccessCodesParsed;
@@ -106,5 +106,9 @@ class CmdLineArgs : ICommandLineValidatable
 
         return null;
     }
-#pragma warning restore 649
+
+    private static void PostBuildCheck(RT.PostBuild.IPostBuildReporter rep)
+    {
+        CommandLineParser.PostBuildStep<CmdLineArgs>(rep, null);
+    }
 }

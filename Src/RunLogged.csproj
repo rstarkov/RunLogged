@@ -33,4 +33,8 @@
     <PackageReference Include="RT.Util" Version="2.0.1755" />
   </ItemGroup>
   
+  <Target Name="PostBuildCheck" AfterTargets="AfterBuild;Publish">
+    <Exec WorkingDirectory="$(OutputPath)" Command="&quot;$(TargetDir)$(AssemblyName).exe&quot; --post-build-check &quot;$(SolutionDir).&quot;" />
+  </Target>
+
 </Project>

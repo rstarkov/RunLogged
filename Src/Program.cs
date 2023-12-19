@@ -34,6 +34,9 @@ class Program
 
     static int Main(string[] args)
     {
+        if (args.Length == 2 && args[0] == "--post-build-check")
+            return RT.PostBuild.PostBuildChecker.RunPostBuildChecks(args[1], Assembly.GetExecutingAssembly());
+
         Application.EnableVisualStyles();
         Application.SetCompatibleTextRenderingDefault(false);
 
