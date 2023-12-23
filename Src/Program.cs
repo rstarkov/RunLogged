@@ -5,6 +5,7 @@ using System.Security.AccessControl;
 using System.Security.Principal;
 using System.Text;
 using RT.CommandLine;
+using RT.Emailer;
 using RT.Serialization.Settings;
 using RT.Util;
 using RT.Util.Consoles;

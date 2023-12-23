@@ -112,6 +112,6 @@ class CmdLineArgs : ICommandLineValidatable
 
     private static void PostBuildCheck(RT.PostBuild.IPostBuildReporter rep)
     {
-        CommandLineParser.PostBuildStep<CmdLineArgs>(rep, null);
+        CommandLineParser.PostBuildStep<CmdLineArgs>(rep);
     }
 }
