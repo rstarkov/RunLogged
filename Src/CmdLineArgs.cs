@@ -22,6 +22,10 @@ class CmdLineArgs : ICommandLineValidatable
     [DocumentationRhoML("If the specified command doesn't succeed, send the log to this email address. See also {option}--success-codes{}. Other email-related settings should be configured in the settings file at {h}%ProgramData%\\RunLogged{}.")]
     public string Email = null;
 
+    [Option("--ping")]
+    [DocumentationRhoML("Ping the specified URL on completion. {h}{{{{{{ok}}}{} expands into 1 on success and 0 on failure. {h}{{{{{{msg}}}{} expands into a URL-escaped short message listing exit code and duration.")]
+    public string PingUrl = null;
+
     [Option("--trayicon")]
     [Documentation("Shows a tray icon while the specified command is running, with options to abort the command, pause its execution, and view the last log line in a tooltip. Specifies the path and filename of an ico file to use for the tray icon.")]
     public string TrayIcon = null;

@@ -365,6 +365,7 @@ class Program
                 outputLine("****** emailing failure log");
                 emailFailureLog();
             }
+            pingUrl(ok: false, msg: $"aborted; ran for {(endTime - startTime).TotalSeconds:#,0.0} seconds");
         }
         else
         {
@@ -377,6 +378,7 @@ class Program
                 success = !_args.FailureCodesParsed.Any(range => _runner.ExitCode >= range.Item1 && _runner.ExitCode <= range.Item2);
 
             outputLine("****** exit code: {0} ({1})".Fmt(_runner.ExitCode, success ? "success" : "failure"));
+            pingUrl(ok: success, msg: $"{(success ? "succeeded" : "failed")}; exit code {_runner.ExitCode}; ran for {(endTime - startTime).TotalSeconds:#,0.0} seconds");
 
             if (!success && _args.Email != null)
             {
@@ -418,6 +420,25 @@ class Program
             account: _settings.EmailerAccount,
             fromName: "RunLogged"
         );
+    }
+
+    private static void pingUrl(bool ok, string msg)
+    {
+        if (_args.PingUrl == null)
+            return;
+        var url = _args.PingUrl
+            .Replace("{{{ok}}}", ok ? "1" : "0")
+            .Replace("{{{msg}}}", msg.UrlEscape());
+        try
+        {
+            using var hc = new HttpClient();
+            hc.GetAsync(url).GetAwaiter().GetResult();
+            outputLine($"****** pinged url: {url}");
+        }
+        catch (Exception e)
+        {
+            outputLine($"****** failed pinging url: {url} ({e.Message})");
+        }
     }
 
     private static void output(string text)
