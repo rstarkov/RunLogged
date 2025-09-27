@@ -116,7 +116,7 @@ class Program
             bool created;
             mutex = MutexAcl.Create(false, _args.MutexName, out created, mutexsecurity);
             if (!created)
-                throw new TellUserException("The mutex \"{0}\" is already acquired by another application.".Fmt(_args.MutexName), returnCode: ExitCode.MutexInUse, silent: true);
+                throw new TellUserException($"The mutex \"{_args.MutexName}\" is already acquired by another application.", returnCode: ExitCode.MutexInUse, silent: true);
         }
 
         string destPath = null;
@@ -192,7 +192,7 @@ class Program
             }
             catch (Exception e)
             {
-                throw new TellUserException("Could not open the log file for writing. File \"{0}\".\n{1}".Fmt(_args.LogFilename, e.Message), returnCode: ExitCode.CannotOpenLogFile);
+                throw new TellUserException($"Could not open the log file for writing. File \"{_args.LogFilename}\".\n{e.Message}", returnCode: ExitCode.CannotOpenLogFile);
             }
 
         _runner = new CommandRunner();
@@ -260,20 +260,20 @@ class Program
                     (___, ____) => { _runner.ResumePaused(); });
                 _trayIcon.ContextMenuStrip.Items.Insert(_trayIcon.ContextMenuStrip.Items.IndexOf(_miPause) + 1, _miResume);
             }
-            _miResume.Text = "&Resume" + (_runner.PausedUntil == DateTime.MaxValue ? "" : " ({0} left)".Fmt(niceTimeSpan(_runner.PausedUntil.Value - DateTime.UtcNow)));
+            _miResume.Text = "&Resume" + (_runner.PausedUntil == DateTime.MaxValue ? "" : $" ({niceTimeSpan(_runner.PausedUntil.Value - DateTime.UtcNow)} left)");
         }
     }
 
     private static string niceTimeSpan(TimeSpan span)
     {
         if (span.TotalDays > 1.5)
-            return "{0:0} days".Fmt(span.TotalDays);
+            return $"{span.TotalDays:0} days";
         else if (span.TotalHours > 1.5)
-            return "{0:0} hours".Fmt(span.TotalHours);
+            return $"{span.TotalHours:0} hours";
         else if (span.TotalMinutes >= 1.5)
-            return "{0:0} minutes".Fmt(span.TotalMinutes);
+            return $"{span.TotalMinutes:0} minutes";
         else
-            return "{0:0} seconds".Fmt(span.TotalSeconds);
+            return $"{span.TotalSeconds:0} seconds";
     }
 
     private static void cleanup()
@@ -296,7 +296,7 @@ class Program
             batchFile.AppendLine(@"@echo off");
             batchFile.AppendLine(@":wait");
             batchFile.AppendLine(@"set HAS=No");
-            batchFile.AppendLine(@"for /f %%A in ('tasklist /fi ""PID eq {0}"" /nh /fo csv ^|find ""{0}""') do set HAS=Yes".Fmt(Environment.ProcessId));
+            batchFile.AppendLine($@"for /f %%A in ('tasklist /fi ""PID eq {Environment.ProcessId}"" /nh /fo csv ^|find ""{Environment.ProcessId}""') do set HAS=Yes");
             batchFile.AppendLine(@"ping localhost -n 2 >nul 2>nul");
             batchFile.AppendLine(@"if '%HAS%'=='Yes' goto wait");
             batchFile.AppendLine(@"cd \");
@@ -334,7 +334,7 @@ class Program
                 _logStartOffset = _log.Position;
             }
             outputLine("************************************************************************");
-            outputLine("****** RunLogged v{1} invoked at {0}".Fmt(startTime.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss"), Ut.VersionOfExe()));
+            outputLine($"****** RunLogged v{Ut.VersionOfExe()} invoked at {startTime.ToLocalTime():yyyy-MM-dd HH:mm:ss}");
             outputLine($"****** Command: |{_runner.Command}|");
             outputLine($"****** CurDir: |{Directory.GetCurrentDirectory()}|");
             outputLine($"****** LogTo: {(_args.LogFilename == null ? "<none>" : $"|{_args.LogFilename}|")}");
@@ -358,7 +358,7 @@ class Program
         var endTime = DateTime.UtcNow;
         if (_runner.State == CommandRunnerState.Aborted)
         {
-            outputLine("****** aborted at {0} (ran for {1:#,0.0} seconds)".Fmt(endTime.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss"), (endTime - startTime).TotalSeconds));
+            outputLine($"****** aborted at {endTime.ToLocalTime():yyyy-MM-dd HH:mm:ss} (ran for {(endTime - startTime).TotalSeconds:#,0.0} seconds)");
             _readingThreadExitCode = ExitCode.Aborted;
             if (_args.Email != null)
             {
@@ -369,7 +369,7 @@ class Program
         }
         else
         {
-            outputLine("****** completed at {0} (ran for {1:#,0.0} seconds)".Fmt(endTime.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss"), (endTime - startTime).TotalSeconds));
+            outputLine($"****** completed at {endTime.ToLocalTime():yyyy-MM-dd HH:mm:ss} (ran for {(endTime - startTime).TotalSeconds:#,0.0} seconds)");
 
             bool success = _runner.ExitCode == 0;
             if (_args.SuccessCodesParsed != null)
@@ -377,7 +377,7 @@ class Program
             else if (_args.FailureCodesParsed != null)
                 success = !_args.FailureCodesParsed.Any(range => _runner.ExitCode >= range.Item1 && _runner.ExitCode <= range.Item2);
 
-            outputLine("****** exit code: {0} ({1})".Fmt(_runner.ExitCode, success ? "success" : "failure"));
+            outputLine($"****** exit code: {_runner.ExitCode} ({(success ? "success" : "failure")})");
             pingUrl(ok: success, msg: $"{(success ? "succeeded" : "failed")}; exit code {_runner.ExitCode}; ran for {(endTime - startTime).TotalSeconds:#,0.0} seconds");
 
             if (!success && _args.Email != null)
@@ -415,7 +415,7 @@ class Program
             catch { }
         Emailer.SendEmail(
             to: new[] { new MailAddress(_args.Email) },
-            subject: "Failure: {0}".Fmt(_runner.Command.SubstringSafe(0, 50)),
+            subject: $"Failure: {_runner.Command.SubstringSafe(0, 50)}",
             bodyPlain: text,
             account: _settings.EmailerAccount,
             fromName: "RunLogged"

@@ -74,7 +74,7 @@ class CmdLineArgs : ICommandLineValidatable
 
         if (WorkingDir != null)
             try { Directory.SetCurrentDirectory(WorkingDir); }
-            catch { return "Cannot set working directory - check that the directory exists and that the path is valid. \"{0}\"".Fmt(WorkingDir); }
+            catch { return $"Cannot set working directory - check that the directory exists and that the path is valid. \"{WorkingDir}\""; }
 
         if (LogFilename == null)
             LogFilename = Path.GetFileName(CommandToRun[0]).Replace(".", "_") + "--{}.log";
@@ -95,7 +95,7 @@ class CmdLineArgs : ICommandLineValidatable
             {
                 var match = Regex.Match(part, @"^\s*(?<fr>-?\d+)\s*(-\s*(?<to>-?\d+\s*))?$");
                 if (!match.Success)
-                    return CommandLineParser.Colorize(RhoML.Parse("Could not parse the exit code list for {option}{0}{}: cannot parse segment \"{h}{1}{}\".".Fmt(SuccessCodes != null ? "--success-codes" : "--failure-codes", part)));
+                    return CommandLineParser.Colorize(RhoML.Parse($$"""Could not parse the exit code list for {option}{{(SuccessCodes != null ? "--success-codes" : "--failure-codes")}}{}: cannot parse segment "{h}{{part}}{}"."""));
                 var fr = int.Parse(match.Groups["fr"].Value);
                 if (!match.Groups["to"].Success)
                     result.Add(Tuple.Create(fr, fr));
