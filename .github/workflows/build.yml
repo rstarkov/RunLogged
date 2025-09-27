@@ -10,12 +10,12 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
       - name: Prepare version
-        uses: actions/github-script@v6
+        uses: actions/github-script@v7
         with:
           script: |
             const script = require(require('path').resolve('./.github/workflows/version.js'))
@@ -28,7 +28,7 @@ jobs:
             vs.updateText('Src/Program.cs', 'v[DEV]', `v${verStr}`);
 
       - name: Install dotnet
-        uses: actions/setup-dotnet@v3
+        uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.x'
 
@@ -42,7 +42,7 @@ jobs:
         run: dotnet publish Src\RunLogged.csproj --configuration ReleaseWindowless -p:InformationalVersion="${{env.VER_STR}}" -p:Version=${{env.VER_NUM}} -p:FileVersion=${{env.VER_NUM}} -p:AssemblyVersion=${{env.VER_NUM}} -o Publish
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: RunLogged-v${{env.VER_NUM}}
           path: Publish
