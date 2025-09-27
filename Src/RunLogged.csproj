@@ -28,10 +28,10 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="RT.CommandLine" Version="2.1.161" />
+    <PackageReference Include="RT.CommandLine" Version="2.2.202" />
     <PackageReference Include="RT.Emailer" Version="1.40.6" />
-    <PackageReference Include="RT.Serialization.Xml" Version="2.0.1764" />
-    <PackageReference Include="RT.Util" Version="2.0.1764" />
+    <PackageReference Include="RT.Serialization.Xml" Version="2.0.1813" />
+    <PackageReference Include="RT.Util" Version="2.0.1813" />
   </ItemGroup>
   
   <Target Name="PostBuildCheck" AfterTargets="AfterBuild;Publish">

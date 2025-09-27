@@ -5,7 +5,6 @@ using RT.Util.Consoles;
 
 namespace RunLogged;
 
-[CommandLine]
 [DocumentationRhoML("{h}RunLogged{}\nVersion [dev]\n\nRuns the specified command and logs all the output to a timestamped log file.")]
 class CmdLineArgs : ICommandLineValidatable
 {
@@ -61,9 +60,7 @@ class CmdLineArgs : ICommandLineValidatable
     [Documentation("Command to be executed, with arguments if any.")]
     public string[] CommandToRun = [];
 
-    [Ignore]
     public List<Tuple<int, int>> SuccessCodesParsed;
-    [Ignore]
     public List<Tuple<int, int>> FailureCodesParsed;
 
     public ConsoleColoredString Validate()
