@@ -316,7 +316,7 @@ class Program
                 _logStartOffset = _log.Position;
             }
             outputLine("************************************************************************");
-            outputLine($"****** RunLogged v{Ut.VersionOfExe()} invoked at {startTime.ToLocalTime():yyyy-MM-dd HH:mm:ss}");
+            outputLine($"****** RunLogged v[DEV] invoked at {startTime.ToLocalTime():yyyy-MM-dd HH:mm:ss}");
             outputLine($"****** Command: |{_runner.Command}|");
             outputLine($"****** CurDir: |{Directory.GetCurrentDirectory()}|");
             outputLine($"****** LogTo: {(_args.LogFilename == null ? "<none>" : $"|{_args.LogFilename}|")}");
