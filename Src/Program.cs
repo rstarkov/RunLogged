@@ -84,15 +84,6 @@ class Program
         });
     }
 
-    private static int wrapToWidth()
-    {
-#if CONSOLE
-        return ConsoleUtil.WrapToWidth();
-#else
-        return 60;
-#endif
-    }
-
     private static void tellUser(ConsoleColoredString message)
     {
 #if CONSOLE
@@ -113,8 +104,7 @@ class Program
             mutexsecurity.AddAccessRule(new MutexAccessRule(sid, MutexRights.FullControl, AccessControlType.Allow));
             mutexsecurity.AddAccessRule(new MutexAccessRule(sid, MutexRights.ChangePermissions, AccessControlType.Deny));
             mutexsecurity.AddAccessRule(new MutexAccessRule(sid, MutexRights.Delete, AccessControlType.Deny));
-            bool created;
-            mutex = MutexAcl.Create(false, _args.MutexName, out created, mutexsecurity);
+            mutex = MutexAcl.Create(false, _args.MutexName, out var created, mutexsecurity);
             if (!created)
                 throw new TellUserException($"The mutex \"{_args.MutexName}\" is already acquired by another application.", returnCode: ExitCode.MutexInUse, silent: true);
         }
@@ -186,9 +176,7 @@ class Program
                 _log.Seek(0, SeekOrigin.End);
                 _logStartOffset = _log.Position;
 
-                var t = new Thread(threadLogFlusher);
-                t.IsBackground = true;
-                t.Start();
+                new Thread(threadLogFlusher) { IsBackground = true }.Start();
             }
             catch (Exception e)
             {
@@ -229,15 +217,13 @@ class Program
 
     private static void pause(object _ = null, EventArgs __ = null)
     {
-        using (var dlg = new PauseForDlg(_settings.PauseForDlgSettings))
-        {
-            var result = dlg.ShowDialog();
-            _settingsFile.Save();
-            if (result == DialogResult.Cancel)
-                return;
-            _runner.Pause(dlg.TimeSpan);
-            updateResumeMenu();
-        }
+        using var dlg = new PauseForDlg(_settings.PauseForDlgSettings);
+        var result = dlg.ShowDialog();
+        _settingsFile.Save();
+        if (result == DialogResult.Cancel)
+            return;
+        _runner.Pause(dlg.TimeSpan);
+        updateResumeMenu();
     }
 
     private static void updateResumeMenu(object _ = null, EventArgs __ = null)
@@ -281,10 +267,8 @@ class Program
         if (_settings != null)
             _settingsFile.Save();
 
-        if (_log != null)
-            _log.Dispose();
-        if (_trayIcon != null)
-            _trayIcon.Dispose();
+        _log?.Dispose();
+        _trayIcon?.Dispose();
 
         if (_originalCurrentDirectory != null)
             try { Directory.SetCurrentDirectory(_originalCurrentDirectory); }
@@ -315,10 +299,8 @@ class Program
 
     private static void processCtrlC()
     {
-        if (_runner != null)
-            _runner.Abort();
-        if (_readingThread != null)
-            _readingThread.Join();
+        _runner?.Abort();
+        _readingThread?.Join();
         cleanup(); // must do this because Ctrl+C ends the program without running "finally" clauses...
     }
 
@@ -405,16 +387,14 @@ class Program
                 lock (_log)
                     _log.Flush();
 
-                using (var log = File.Open(_args.LogFilename, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))
-                using (var logreader = new StreamReader(log))
-                {
-                    log.Seek(Program._logStartOffset, SeekOrigin.Begin);
-                    text = logreader.ReadToEnd();
-                }
+                using var log = File.Open(_args.LogFilename, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+                using var logreader = new StreamReader(log);
+                log.Seek(_logStartOffset, SeekOrigin.Begin);
+                text = logreader.ReadToEnd();
             }
             catch { }
         Emailer.SendEmail(
-            to: new[] { new MailAddress(_args.Email) },
+            to: [new MailAddress(_args.Email)],
             subject: $"Failure: {_runner.Command.SubstringSafe(0, 50)}",
             bodyPlain: text,
             account: _settings.EmailerAccount,
@@ -505,7 +485,7 @@ class Program
                     {
                         _log.Seek(curPos - readBytes, SeekOrigin.Begin);
                         var readAgain = _log.Read(readBytes);
-                        if ((readAgain[0] & 0xc0) != 0x80 && ((readAgainStr = readAgain.FromUtf8()).Length == backspaces || readAgainStr.Contains("\n")))
+                        if ((readAgain[0] & 0xc0) != 0x80 && ((readAgainStr = readAgain.FromUtf8()).Length == backspaces || readAgainStr.Contains('\n')))
                             break;
                         readBytes++;
                     }
@@ -524,7 +504,7 @@ class Program
             }
     }
 
-    private static ManualResetEvent _logFlushNeeded = new ManualResetEvent(false);
+    private static ManualResetEvent _logFlushNeeded = new(false);
     private static DateTime _logLastFlush;
 
     private static void threadLogFlusher()

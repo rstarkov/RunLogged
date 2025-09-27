@@ -2,7 +2,6 @@
 using RT.CommandLine;
 using RT.Util;
 using RT.Util.Consoles;
-using RT.Util.ExtensionMethods;
 
 namespace RunLogged;
 
@@ -76,8 +75,7 @@ class CmdLineArgs : ICommandLineValidatable
             try { Directory.SetCurrentDirectory(WorkingDir); }
             catch { return $"Cannot set working directory - check that the directory exists and that the path is valid. \"{WorkingDir}\""; }
 
-        if (LogFilename == null)
-            LogFilename = Path.GetFileName(CommandToRun[0]).Replace(".", "_") + "--{}.log";
+        LogFilename ??= Path.GetFileName(CommandToRun[0]).Replace(".", "_") + "--{}.log";
         if (LogFilename == "")
             LogFilename = null;
         else
