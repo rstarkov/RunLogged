@@ -17,7 +17,6 @@ class Program
 
     static int Main(string[] args)
     {
-        Console.OutputEncoding = Encoding.UTF8;
         try
         {
             return DoMain(args);
@@ -42,9 +41,7 @@ class Program
     static int DoMain(string[] args)
     {
         var scriptFile = Path.GetFullPath(args[0]);
-
-        _writer = File.AppendText(args[0] + ".log");
-        Console.SetOut(_writer);
+        _writer = new LogAndConsoleWriter(args[0] + ".log");
 
         if (!File.Exists(scriptFile))
             throw new TellUserException($"Script file not found: {scriptFile}", -1);
