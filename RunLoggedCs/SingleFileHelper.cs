@@ -31,26 +31,20 @@ public static class SingleFileHelper
             0xee, 0x3b, 0x2d, 0xce, 0x24, 0xb3, 0x6a, 0xae
         };
 
-        using (var memoryMappedPackage = MemoryMappedFile.CreateFromFile(entryPath, FileMode.Open, null, 0, MemoryMappedFileAccess.Read))
-        {
-            using (var packageView = memoryMappedPackage.CreateViewAccessor(0, 0, MemoryMappedFileAccess.Read))
-            {
-                int position = SearchInFile(packageView, bundleSignature);
-                if (position == -1)
-                {
-                    throw new Exception("placeholder not found");
-                }
+        using var memoryMappedPackage = MemoryMappedFile.CreateFromFile(entryPath, FileMode.Open, null, 0, MemoryMappedFileAccess.Read);
+        using var packageView = memoryMappedPackage.CreateViewAccessor(0, 0, MemoryMappedFileAccess.Read);
+        int position = SearchInFile(packageView, bundleSignature);
+        if (position == -1)
+            throw new Exception("placeholder not found");
 
-                long headerOffset = packageView.ReadInt64(position - sizeof(long));
+        long headerOffset = packageView.ReadInt64(position - sizeof(long));
 
-                var manifest = ReadManifest(packageView, headerOffset);
+        var manifest = ReadManifest(packageView, headerOffset);
 
-                var entry = manifest.Entries.OrderBy(e => e.RelativePath.Length)
-                    .First(e => e.Type == FileType.Assembly && e.RelativePath.Contains(assy.GetName().Name));
-                var stream = new UnmanagedMemoryStream(packageView.SafeMemoryMappedViewHandle, entry.Offset, entry.Size);
-                return ctx.AddReferences(MetadataReference.CreateFromStream(stream));
-            }
-        }
+        var entry = manifest.Entries.OrderBy(e => e.RelativePath.Length)
+            .First(e => e.Type == FileType.Assembly && e.RelativePath.Contains(assy.GetName().Name));
+        var stream = new UnmanagedMemoryStream(packageView.SafeMemoryMappedViewHandle, entry.Offset, entry.Size);
+        return ctx.AddReferences(MetadataReference.CreateFromStream(stream));
     }
 
     internal static unsafe int SearchInFile(MemoryMappedViewAccessor accessor, byte[] searchPattern)
