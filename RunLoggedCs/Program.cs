@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
-using System.Text;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using RT.Util;
@@ -14,6 +13,10 @@ namespace RunLoggedCs;
 class Program
 {
     static TextWriter _writer;
+
+    public const int ExitScriptException = -100;
+    public const int ExitScriptCompile = -101;
+    public const int ExitStartupError = -102;
 
     static int Main(string[] args)
     {
@@ -40,11 +43,14 @@ class Program
 
     static int DoMain(string[] args)
     {
+        if (args.Length == 0)
+            throw new TellUserException($"Usage: RunLoggedCs.exe <script.cs> [arg0 ...]", ExitStartupError);
+
         var scriptFile = Path.GetFullPath(args[0]);
         _writer = new LogAndConsoleWriter(args[0] + ".log");
 
         if (!File.Exists(scriptFile))
-            throw new TellUserException($"Script file not found: {scriptFile}", -1);
+            throw new TellUserException($"Script file not found: {scriptFile}", ExitStartupError);
 
         // Load the script
         var code = File.ReadAllText(scriptFile);
@@ -108,10 +114,10 @@ class Program
             else
                 continue;
             if (main != null && had)
-                throw new TellUserException($"Found multiple candidates for the Main method (entry point).", -1);
+                throw new TellUserException($"Found multiple candidates for the Main method (entry point).", ExitScriptCompile);
         }
         if (main == null)
-            throw new TellUserException($"No candidates found for the Main method (entry point).", -1);
+            throw new TellUserException($"No candidates found for the Main method (entry point).", ExitScriptCompile);
 
         // Execute the script
         try
@@ -145,7 +151,7 @@ class TellUserException : Exception
 class CompileErrorsException : TellUserException
 {
     public IReadOnlyList<Diagnostic> Errors { get; init; }
-    public CompileErrorsException(List<Diagnostic> errors) : base("Script compilation error", -1)
+    public CompileErrorsException(List<Diagnostic> errors) : base("Script compilation error", Program.ExitScriptCompile)
     {
         Errors = errors;
     }
@@ -163,7 +169,7 @@ class CompileErrorsException : TellUserException
 
 class ScriptException : TellUserException
 {
-    public ScriptException(TargetInvocationException e) : base("Unhandled exception in script", e.InnerException, -2)
+    public ScriptException(TargetInvocationException e) : base("Unhandled exception in script", e.InnerException, Program.ExitScriptException)
     {
     }
 
