@@ -1,0 +1,86 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Reflection;
+using Microsoft.CodeAnalysis;
+using RT.Util.ExtensionMethods;
+
+namespace RunLoggedCs;
+
+interface IOutcome
+{
+    int ExitCode { get; }
+    void WriteToConsole();
+}
+
+class ScriptSuccess : IOutcome
+{
+    public int ExitCode { get; set; }
+    public void WriteToConsole()
+    {
+        Console.WriteLine($"Script succeeded: exit code = {ExitCode}");
+    }
+}
+
+class ScriptFailure : IOutcome
+{
+    public int ExitCode { get; set; }
+    public void WriteToConsole()
+    {
+        Console.WriteLine($"Script failed: exit code = {ExitCode}");
+    }
+}
+
+class TellUserException : Exception, IOutcome
+{
+    public int ExitCode { get; init; }
+    public TellUserException(string message, int exitcode) : base(message)
+    {
+        ExitCode = exitcode;
+    }
+    protected TellUserException(string message, Exception innerException, int exitcode) : base(message, innerException)
+    {
+        ExitCode = exitcode;
+    }
+    public virtual void WriteToConsole()
+    {
+        Console.WriteLine(Message);
+    }
+}
+
+class CompileErrorsException : TellUserException, IOutcome
+{
+    public IReadOnlyList<Diagnostic> Errors { get; init; }
+    public CompileErrorsException(List<Diagnostic> errors) : base("Script compilation error", Program.ExitScriptCompile)
+    {
+        Errors = errors;
+    }
+
+    public override void WriteToConsole()
+    {
+        Console.WriteLine($"ERROR: {Message}");
+        foreach (var error in Errors)
+        {
+            Console.WriteLine();
+            Console.WriteLine($"[{error.Location.GetMappedLineSpan().StartLinePosition}]: {error.GetMessage()}");
+        }
+    }
+}
+
+class ScriptException : TellUserException, IOutcome
+{
+    public ScriptException(TargetInvocationException e) : base("Unhandled exception in script", e.InnerException, Program.ExitScriptException)
+    {
+    }
+
+    public override void WriteToConsole()
+    {
+        Console.WriteLine($"ERROR: {Message}");
+        foreach (var excp in InnerException.SelectChain(ee => ee.InnerException))
+        {
+            Console.WriteLine();
+            Console.WriteLine($"{excp.GetType().Name}: {excp.Message}");
+            Console.WriteLine(excp.StackTrace);
+        }
+        Console.WriteLine();
+    }
+}

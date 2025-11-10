@@ -18,35 +18,35 @@ static class Program
     static Settings _settings;
     static List<string> _warnings = [];
     static List<string> _settingsFiles = [];
+    static IOutcome _outcome;
 
     public const int ExitScriptException = -100;
     public const int ExitScriptCompile = -101;
     public const int ExitStartupError = -102;
+    public const int ExitInternalError = -103;
 
     static int Main(string[] args)
     {
         try
         {
-            return DoMain(args);
+            DoMain(args);
         }
         catch (TellUserException ex)
         {
-            ex.WriteToConsole();
-            return ex.ExitCode;
+            _outcome = ex;
         }
 #if !DEBUG
         catch (Exception ex)
         {
-            // TODO: INTERNAL ERROR
+            _outcome = new TellUserException($"Internal error: {ex.GetType().Name}, {ex.Message}, {ex.StackTrace}", ExitInternalError);
         }
 #endif
-        finally
-        {
-            _writer?.Dispose(); // also restores Console.Out to original
-        }
+        _outcome.WriteToConsole();
+        _writer?.Dispose(); // also restores Console.Out to original
+        return _outcome.ExitCode;
     }
 
-    static int DoMain(string[] args)
+    static void DoMain(string[] args)
     {
         _settings = Settings.GetDefault();
         TryLoadSettings(Path.Combine(AppContext.BaseDirectory, "Settings.RunLoggedCs.xml"));
@@ -136,7 +136,11 @@ static class Program
         // Execute the script
         try
         {
-            return main(args.Skip(1).ToArray());
+            int exitCode = main(args.Skip(1).ToArray());
+            if (exitCode == 0)
+                _outcome = new ScriptSuccess { ExitCode = exitCode };
+            else
+                _outcome = new ScriptFailure { ExitCode = exitCode };
         }
         catch (TargetInvocationException e)
         {
@@ -158,60 +162,5 @@ static class Program
         {
             _warnings.Add($"Could not load settings from {fullname}: {e.GetType().Name}, {e.Message}");
         }
-    }
-}
-
-class TellUserException : Exception
-{
-    public int ExitCode { get; init; }
-    public TellUserException(string message, int exitcode) : base(message)
-    {
-        ExitCode = exitcode;
-    }
-    protected TellUserException(string message, Exception innerException, int exitcode) : base(message, innerException)
-    {
-        ExitCode = exitcode;
-    }
-    public virtual void WriteToConsole()
-    {
-        Console.WriteLine(Message);
-    }
-}
-
-class CompileErrorsException : TellUserException
-{
-    public IReadOnlyList<Diagnostic> Errors { get; init; }
-    public CompileErrorsException(List<Diagnostic> errors) : base("Script compilation error", Program.ExitScriptCompile)
-    {
-        Errors = errors;
-    }
-
-    public override void WriteToConsole()
-    {
-        Console.WriteLine($"ERROR: {Message}");
-        foreach (var error in Errors)
-        {
-            Console.WriteLine();
-            Console.WriteLine($"[{error.Location.GetMappedLineSpan().StartLinePosition}]: {error.GetMessage()}");
-        }
-    }
-}
-
-class ScriptException : TellUserException
-{
-    public ScriptException(TargetInvocationException e) : base("Unhandled exception in script", e.InnerException, Program.ExitScriptException)
-    {
-    }
-
-    public override void WriteToConsole()
-    {
-        Console.WriteLine($"ERROR: {Message}");
-        foreach (var excp in InnerException.SelectChain(ee => ee.InnerException))
-        {
-            Console.WriteLine();
-            Console.WriteLine($"{excp.GetType().Name}: {excp.Message}");
-            Console.WriteLine(excp.StackTrace);
-        }
-        Console.WriteLine();
     }
 }
