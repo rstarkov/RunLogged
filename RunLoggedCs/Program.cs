@@ -10,9 +10,14 @@ using RT.Util.ExtensionMethods;
 
 namespace RunLoggedCs;
 
-class Program
+static class Program
 {
     static TextWriter _writer;
+    static string _scriptName = "(unknown)"; // without path or extension
+    static string _scriptDir = null;
+    static Settings _settings;
+    static List<string> _warnings = [];
+    static List<string> _settingsFiles = [];
 
     public const int ExitScriptException = -100;
     public const int ExitScriptCompile = -101;
@@ -37,17 +42,26 @@ class Program
 #endif
         finally
         {
-            _writer?.Dispose();
+            _writer?.Dispose(); // also restores Console.Out to original
         }
     }
 
     static int DoMain(string[] args)
     {
+        _settings = Settings.GetDefault();
+        TryLoadSettings(Path.Combine(AppContext.BaseDirectory, "Settings.RunLoggedCs.xml"));
+        TryLoadSettings(Path.Combine(AppContext.BaseDirectory, $"Settings.RunLoggedCs.{Environment.MachineName}.xml"));
+
         if (args.Length == 0)
             throw new TellUserException($"Usage: RunLoggedCs.exe <script.cs> [arg0 ...]", ExitStartupError);
 
         var scriptFile = Path.GetFullPath(args[0]);
-        _writer = new LogAndConsoleWriter(args[0] + ".log");
+        _scriptDir = Path.GetDirectoryName(scriptFile);
+        _scriptName = Path.GetFileNameWithoutExtension(scriptFile);
+        TryLoadSettings(Path.Combine(_scriptDir, $"{_scriptName}.RunLoggedCs.xml"));
+        TryLoadSettings(Path.Combine(_scriptDir, $"{_scriptName}.RunLoggedCs.{Environment.MachineName}.xml"));
+
+        _writer = new LogAndConsoleWriter(args[0] + ".log"); // also sets Console.Out to self
 
         if (!File.Exists(scriptFile))
             throw new TellUserException($"Script file not found: {scriptFile}", ExitStartupError);
@@ -127,6 +141,22 @@ class Program
         catch (TargetInvocationException e)
         {
             throw new ScriptException(e);
+        }
+    }
+
+    static void TryLoadSettings(string fullname)
+    {
+        try
+        {
+            if (!File.Exists(fullname))
+                return;
+            var settings = Settings.LoadFromFile(fullname);
+            _settings.AddOverrides(settings);
+            _settingsFiles.Add(fullname);
+        }
+        catch (Exception e)
+        {
+            _warnings.Add($"Could not load settings from {fullname}: {e.GetType().Name}, {e.Message}");
         }
     }
 }
