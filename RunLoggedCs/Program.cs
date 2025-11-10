@@ -19,6 +19,7 @@ static class Program
     static List<string> _warnings = [];
     static List<string> _settingsFiles = [];
     static IOutcome _outcome;
+    static DateTime _startedAt = DateTime.UtcNow;
 
     public const int ExitScriptException = -100;
     public const int ExitScriptCompile = -101;
@@ -56,18 +57,27 @@ static class Program
             throw new TellUserException($"Usage: RunLoggedCs.exe <script.cs> [arg0 ...]", ExitStartupError);
 
         var scriptFile = Path.GetFullPath(args[0]);
+        args = args.Skip(1).ToArray();
         _scriptDir = Path.GetDirectoryName(scriptFile);
         _scriptName = Path.GetFileNameWithoutExtension(scriptFile);
         TryLoadSettings(Path.Combine(_scriptDir, $"{_scriptName}.RunLoggedCs.xml"));
         TryLoadSettings(Path.Combine(_scriptDir, $"{_scriptName}.RunLoggedCs.{Environment.MachineName}.xml"));
 
-        _writer = new LogAndConsoleWriter(args[0] + ".log"); // also sets Console.Out to self
+        _writer = new LogAndConsoleWriter(_scriptName + ".log"); // also sets Console.Out to self
+
+        Console.WriteLine($"************************************************************************");
+        Console.WriteLine($"****** RunLoggedCs v[DEV] invoked at {_startedAt.ToLocalTime():yyyy-MM-dd HH:mm:ss}");
+        Console.WriteLine($"****** Script: |{scriptFile}|");
+        Console.WriteLine($"****** Script args: {args.JoinString(" ", "|", "|")}");
+        Console.WriteLine($"****** CurDir: |{Directory.GetCurrentDirectory()}|");
+        foreach (var sf in _settingsFiles)
+            Console.WriteLine($"****** Settings file: |{sf}|");
 
         var main = CompileScript(scriptFile);
 
         try
         {
-            int exitCode = main(args.Skip(1).ToArray());
+            int exitCode = main(args);
             if (exitCode == 0)
                 _outcome = new ScriptSuccess { ExitCode = exitCode };
             else

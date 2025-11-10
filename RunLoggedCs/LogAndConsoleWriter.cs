@@ -35,5 +35,5 @@ class LogAndConsoleWriter : TextWriter
     public override void Write(char value) { _logWriter.Write(value); _conWriter.Write(value); }
     public override void Write(char[] buffer, int index, int count) { _logWriter.Write(buffer, index, count); _conWriter.Write(buffer, index, count); }
     public override void Write(string value) { _logWriter.Write(value); _conWriter.Write(value); }
-    public override void WriteLine(string value) { _logWriter.Write(value); _conWriter.Write(value); }
+    public override void WriteLine(string value) { _logWriter.WriteLine(value); _conWriter.WriteLine(value); }
 }
