@@ -49,13 +49,16 @@ static class Program
 
     static void DoMain(string[] args)
     {
+        // Load core settings that apply to all scripts
         _settings = Settings.GetDefault();
         TryLoadSettings(Path.Combine(AppContext.BaseDirectory, "Settings.RunLoggedCs.xml"));
         TryLoadSettings(Path.Combine(AppContext.BaseDirectory, $"Settings.RunLoggedCs.{Environment.MachineName}.xml"));
 
+        // Report if no arguments - might go to Telegram if configured globally
         if (args.Length == 0)
             throw new TellUserException($"Usage: RunLoggedCs.exe <script.cs> [arg0 ...]", ExitStartupError);
 
+        // Parse args and load script-specific settings, if any
         var scriptFile = Path.GetFullPath(args[0]);
         args = args.Skip(1).ToArray();
         _scriptDir = Path.GetDirectoryName(scriptFile);
@@ -63,8 +66,10 @@ static class Program
         TryLoadSettings(Path.Combine(_scriptDir, $"{_scriptName}.RunLoggedCs.xml"));
         TryLoadSettings(Path.Combine(_scriptDir, $"{_scriptName}.RunLoggedCs.{Environment.MachineName}.xml"));
 
+        // Send StdOut to a file log, now that we know where to log
         _writer = new LogAndConsoleWriter(_scriptName + ".log"); // also sets Console.Out to self
 
+        // Log header
         Console.WriteLine($"************************************************************************");
         Console.WriteLine($"****** RunLoggedCs v[DEV] invoked at {_startedAt.ToLocalTime():yyyy-MM-dd HH:mm:ss}");
         Console.WriteLine($"****** Script: |{scriptFile}|");
@@ -73,8 +78,10 @@ static class Program
         foreach (var sf in _settingsFiles)
             Console.WriteLine($"****** Settings file: |{sf}|");
 
+        // Compile everything and get a runnable function
         var main = CompileScript(scriptFile);
 
+        // Run it and determine the outcome
         try
         {
             int exitCode = main(args);
