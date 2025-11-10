@@ -63,10 +63,43 @@ static class Program
 
         _writer = new LogAndConsoleWriter(args[0] + ".log"); // also sets Console.Out to self
 
+        var main = CompileScript(scriptFile);
+
+        try
+        {
+            int exitCode = main(args.Skip(1).ToArray());
+            if (exitCode == 0)
+                _outcome = new ScriptSuccess { ExitCode = exitCode };
+            else
+                _outcome = new ScriptFailure { ExitCode = exitCode };
+        }
+        catch (TargetInvocationException e)
+        {
+            throw new ScriptException(e);
+        }
+    }
+
+    static void TryLoadSettings(string fullname)
+    {
+        try
+        {
+            if (!File.Exists(fullname))
+                return;
+            var settings = Settings.LoadFromFile(fullname);
+            _settings.AddOverrides(settings);
+            _settingsFiles.Add(fullname);
+        }
+        catch (Exception e)
+        {
+            _warnings.Add($"Could not load settings from {fullname}: {e.GetType().Name}, {e.Message}");
+        }
+    }
+
+    static Func<string[], int> CompileScript(string scriptFile)
+    {
+        // Load the script code
         if (!File.Exists(scriptFile))
             throw new TellUserException($"Script file not found: {scriptFile}", ExitStartupError);
-
-        // Load the script
         var code = File.ReadAllText(scriptFile);
         code = new[]
         {
@@ -132,35 +165,6 @@ static class Program
         }
         if (main == null)
             throw new TellUserException($"No candidates found for the Main method (entry point).", ExitScriptCompile);
-
-        // Execute the script
-        try
-        {
-            int exitCode = main(args.Skip(1).ToArray());
-            if (exitCode == 0)
-                _outcome = new ScriptSuccess { ExitCode = exitCode };
-            else
-                _outcome = new ScriptFailure { ExitCode = exitCode };
-        }
-        catch (TargetInvocationException e)
-        {
-            throw new ScriptException(e);
-        }
-    }
-
-    static void TryLoadSettings(string fullname)
-    {
-        try
-        {
-            if (!File.Exists(fullname))
-                return;
-            var settings = Settings.LoadFromFile(fullname);
-            _settings.AddOverrides(settings);
-            _settingsFiles.Add(fullname);
-        }
-        catch (Exception e)
-        {
-            _warnings.Add($"Could not load settings from {fullname}: {e.GetType().Name}, {e.Message}");
-        }
+        return main;
     }
 }
