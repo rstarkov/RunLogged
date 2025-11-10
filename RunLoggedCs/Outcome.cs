@@ -17,7 +17,7 @@ class ScriptSuccess : IOutcome
     public int ExitCode { get; set; }
     public void WriteToConsole()
     {
-        Console.WriteLine($"Script succeeded: exit code = {ExitCode}");
+        Console.WriteLine($"****** exit code: {ExitCode} (success)");
     }
 }
 
@@ -26,7 +26,7 @@ class ScriptFailure : IOutcome
     public int ExitCode { get; set; }
     public void WriteToConsole()
     {
-        Console.WriteLine($"Script failed: exit code = {ExitCode}");
+        Console.WriteLine($"****** exit code: {ExitCode} (failure)");
     }
 }
 
@@ -43,7 +43,8 @@ class TellUserException : Exception, IOutcome
     }
     public virtual void WriteToConsole()
     {
-        Console.WriteLine(Message);
+        Console.WriteLine($"****** {Message}");
+        Console.WriteLine($"****** exit code: {ExitCode} (abnormal exit; startup error)");
     }
 }
 
@@ -57,12 +58,14 @@ class CompileErrorsException : TellUserException, IOutcome
 
     public override void WriteToConsole()
     {
-        Console.WriteLine($"ERROR: {Message}");
+        Console.WriteLine($"****** Script compilation error:");
         foreach (var error in Errors)
         {
-            Console.WriteLine();
-            Console.WriteLine($"[{error.Location.GetMappedLineSpan().StartLinePosition}]: {error.GetMessage()}");
+            Console.WriteLine($"******");
+            Console.WriteLine($"****** [{error.Location.GetMappedLineSpan().StartLinePosition}]: {error.GetMessage()}");
         }
+        Console.WriteLine($"******");
+        Console.WriteLine($"****** exit code: {ExitCode} (abnormal exit; compile error in script)");
     }
 }
 
@@ -74,13 +77,14 @@ class ScriptException : TellUserException, IOutcome
 
     public override void WriteToConsole()
     {
-        Console.WriteLine($"ERROR: {Message}");
+        Console.WriteLine($"****** Unhandled exception in script:");
         foreach (var excp in InnerException.SelectChain(ee => ee.InnerException))
         {
-            Console.WriteLine();
-            Console.WriteLine($"{excp.GetType().Name}: {excp.Message}");
-            Console.WriteLine(excp.StackTrace);
+            Console.WriteLine($"******");
+            Console.WriteLine($"****** {excp.GetType().Name}: {excp.Message}");
+            Console.WriteLine($"****** " + excp.StackTrace.Replace("\n", "\n****** "));
         }
-        Console.WriteLine();
+        Console.WriteLine($"******");
+        Console.WriteLine($"****** exit code: {ExitCode} (abnormal exit; unhandled exception in script)");
     }
 }

@@ -42,7 +42,9 @@ static class Program
             _outcome = new TellUserException($"Internal error: {ex.GetType().Name}, {ex.Message}, {ex.StackTrace}", ExitInternalError);
         }
 #endif
+        Console.WriteLine(); // script may not have written anything, or may have written text without a newline
         _outcome.WriteToConsole();
+        Console.WriteLine($"****** exit at: {DateTime.UtcNow.ToLocalTime():yyyy-MM-dd HH:mm:ss} (ran for {(DateTime.UtcNow - _startedAt).TotalSeconds:#,0.0} seconds)");
         _writer?.Dispose(); // also restores Console.Out to original
         return _outcome.ExitCode;
     }
@@ -73,7 +75,7 @@ static class Program
         Console.WriteLine($"************************************************************************");
         Console.WriteLine($"****** RunLoggedCs v[DEV] invoked at {_startedAt.ToLocalTime():yyyy-MM-dd HH:mm:ss}");
         Console.WriteLine($"****** Script: |{scriptFile}|");
-        Console.WriteLine($"****** Script args: {args.JoinString(" ", "|", "|")}");
+        Console.WriteLine($"****** Script args: {(args.Length == 0 ? "(none)" : args.JoinString(" ", "|", "|"))}");
         Console.WriteLine($"****** CurDir: |{Directory.GetCurrentDirectory()}|");
         foreach (var sf in _settingsFiles)
             Console.WriteLine($"****** Settings file: |{sf}|");
