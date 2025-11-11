@@ -6,6 +6,7 @@ namespace RunLoggedCs;
 
 class LogAndConsoleWriter : TextWriter
 {
+    public bool IsNewFile { get; init; }
     private TextWriter _conWriter;
     private TextWriter _logWriter;
     private Stream _logStream;
@@ -14,6 +15,7 @@ class LogAndConsoleWriter : TextWriter
     {
         Console.OutputEncoding = Encoding.UTF8;
         _conWriter = Console.Out;
+        IsNewFile = !File.Exists(logFilename);
         _logStream = File.Open(logFilename, FileMode.Append, FileAccess.Write, FileShare.Read);
         _logWriter = new StreamWriter(_logStream);
         Console.SetOut(this);

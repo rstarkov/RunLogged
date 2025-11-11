@@ -16,7 +16,7 @@ static class Program
     public static Settings Settings;
     public static string ScriptName = "(unknown)"; // without path or extension
 
-    static TextWriter _writer;
+    static LogAndConsoleWriter _writer;
     static List<string> _warnings = [];
     static List<string> _settingsFiles = [];
     static IOutcome _outcome;
@@ -77,7 +77,8 @@ static class Program
         _writer = new LogAndConsoleWriter(ScriptName + ".log"); // also sets Console.Out to self
 
         // Log header
-        Console.WriteLine(); // previous log may not have had a proper newline
+        if (!_writer.IsNewFile)
+            Console.WriteLine(); // previous log may not have had a proper newline
         Console.WriteLine($"************************************************************************");
         Console.WriteLine($"****** RunLoggedCs v[DEV] invoked at {_startedAt.ToLocalTime():yyyy-MM-dd HH:mm:ss}");
         Console.WriteLine($"****** Script: |{scriptFile}|");
