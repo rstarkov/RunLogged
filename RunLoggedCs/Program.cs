@@ -44,6 +44,7 @@ static class Program
 #endif
         Console.WriteLine(); // script may not have written anything, or may have written text without a newline
         _outcome.WriteFooter();
+        Console.WriteLine($"****** exit code: {_outcome.ExitCode} ({_outcome.Summary})");
         Console.WriteLine($"****** exit at: {DateTime.UtcNow.ToLocalTime():yyyy-MM-dd HH:mm:ss} (ran for {(DateTime.UtcNow - _startedAt).TotalSeconds:#,0.0} seconds)");
         _writer?.Dispose(); // also restores Console.Out to original
         return _outcome.ExitCode;

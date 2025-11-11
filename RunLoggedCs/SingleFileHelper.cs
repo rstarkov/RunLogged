@@ -12,7 +12,7 @@ using Microsoft.CodeAnalysis.CSharp;
 
 namespace RunLoggedCs;
 
-public static class SingleFileHelper
+static class SingleFileHelper
 {
     [SuppressMessage("SingleFile", "IL3000:Avoid accessing Assembly file path when publishing as a single file")]
     public static CSharpCompilation AddAssemblyReference(this CSharpCompilation ctx, Assembly assy)

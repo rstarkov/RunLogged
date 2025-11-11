@@ -9,24 +9,25 @@ namespace RunLoggedCs;
 interface IOutcome
 {
     int ExitCode { get; }
+    string Summary { get; }
     void WriteFooter();
 }
 
 class ScriptSuccess : IOutcome
 {
     public int ExitCode { get; set; }
+    public string Summary { get => $"success"; }
     public void WriteFooter()
     {
-        Console.WriteLine($"****** exit code: {ExitCode} (success)");
     }
 }
 
 class ScriptFailure : IOutcome
 {
     public int ExitCode { get; set; }
+    public string Summary { get => $"failure"; }
     public void WriteFooter()
     {
-        Console.WriteLine($"****** exit code: {ExitCode} (failure)");
     }
 }
 
@@ -41,10 +42,10 @@ class TellUserException : Exception, IOutcome
     {
         ExitCode = exitcode;
     }
+    public virtual string Summary { get => $"abnormal exit; startup error"; }
     public virtual void WriteFooter()
     {
         Console.WriteLine($"****** {Message}");
-        Console.WriteLine($"****** exit code: {ExitCode} (abnormal exit; startup error)");
     }
 }
 
@@ -56,6 +57,8 @@ class CompileErrorsException : TellUserException, IOutcome
         Errors = errors;
     }
 
+    public override string Summary { get => $"abnormal exit; compile error in script"; }
+
     public override void WriteFooter()
     {
         Console.WriteLine($"****** Script compilation error:");
@@ -65,7 +68,6 @@ class CompileErrorsException : TellUserException, IOutcome
             Console.WriteLine($"****** [{error.Location.GetMappedLineSpan().StartLinePosition}]: {error.GetMessage()}");
         }
         Console.WriteLine($"******");
-        Console.WriteLine($"****** exit code: {ExitCode} (abnormal exit; compile error in script)");
     }
 }
 
@@ -74,6 +76,8 @@ class ScriptException : TellUserException, IOutcome
     public ScriptException(TargetInvocationException e) : base("Unhandled exception in script", e.InnerException, Program.ExitScriptException)
     {
     }
+
+    public override string Summary { get => $"abnormal exit; unhandled exception in script"; }
 
     public override void WriteFooter()
     {
@@ -85,6 +89,5 @@ class ScriptException : TellUserException, IOutcome
             Console.WriteLine($"****** " + excp.StackTrace.Replace("\n", "\n****** "));
         }
         Console.WriteLine($"******");
-        Console.WriteLine($"****** exit code: {ExitCode} (abnormal exit; unhandled exception in script)");
     }
 }
