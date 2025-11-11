@@ -15,7 +15,7 @@ public class Telegram
     internal static void Init(Settings settings, string scriptName)
     {
         _settings = settings;
-        _sender = $"<b>{scriptName.HtmlEscape()}</b> on <b>{settings.MachineName}</b>";
+        _sender = $"<b>{settings.MachineName}</b> - <b>{scriptName.HtmlEscape()}</b>";
     }
 
     public static async Task SendRawAsync(bool warn, string html)

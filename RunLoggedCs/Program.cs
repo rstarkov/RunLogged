@@ -197,11 +197,11 @@ static class Program
     static void NotifyOutcome()
     {
         // Report warnings to Telegram
-        if (_settings.Telegram?.WarnBotToken != null)
+        if (_warnings.Count > 0 && _settings.Telegram?.WarnBotToken != null)
             Telegram.Send(warn: true, html: _warnings.JoinString("\n"));
         // Report outcome to TG
         if (_outcome is ScriptSuccess ss && _settings.Telegram?.NotifyOnSuccess == true)
-            Telegram.Send(warn: true, html: $"{_outcome.Summary}; exit code {_outcome.ExitCode}; {_duration.TotalSeconds:#,0.0} seconds");
+            Telegram.Send(warn: false, html: $"{_outcome.Summary}; exit code {_outcome.ExitCode}; {_duration.TotalSeconds:#,0.0} seconds");
         else if (_outcome is not ScriptSuccess && _settings.Telegram?.WarnBotToken != null)
             Telegram.Send(warn: true, html: $"{_outcome.Summary}; exit code {_outcome.ExitCode}; {_duration.TotalSeconds:#,0.0} seconds");
     }
