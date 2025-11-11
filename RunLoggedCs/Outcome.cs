@@ -17,69 +17,87 @@ class ScriptSuccess : IOutcome
 {
     public int ExitCode { get; set; }
     public string Summary { get => $"success"; }
-    public void WriteFooter()
-    {
-    }
+    public void WriteFooter() { }
 }
 
 class ScriptFailure : IOutcome
 {
     public int ExitCode { get; set; }
     public string Summary { get => $"failure"; }
+    public void WriteFooter() { }
+}
+
+class InternalError : IOutcome
+{
+    public int ExitCode { get; } = Program.ExitInternalError;
+    public string Summary { get => $"abnormal exit; internal error"; }
+    public Exception Exception { get; set; }
     public void WriteFooter()
     {
+        Console.WriteLine($"****** Internal error: {Exception.GetType().Name}, {Exception.Message}");
+        Console.WriteLine($"****** " + Exception.StackTrace.Replace("\n", "\n****** "));
     }
 }
 
-class TellUserException : Exception, IOutcome
+class StartupException : Exception, IOutcome
 {
-    public int ExitCode { get; init; }
-    public TellUserException(string message, int exitcode) : base(message)
-    {
-        ExitCode = exitcode;
-    }
-    protected TellUserException(string message, Exception innerException, int exitcode) : base(message, innerException)
-    {
-        ExitCode = exitcode;
-    }
-    public virtual string Summary { get => $"abnormal exit; startup error"; }
-    public virtual void WriteFooter()
+    public int ExitCode { get; } = Program.ExitStartupError;
+
+    public StartupException(string message) : base(message) { }
+    protected StartupException(string message, Exception innerException) : base(message, innerException) { }
+
+    public string Summary { get => $"abnormal exit; startup error"; }
+
+    public void WriteFooter()
     {
         Console.WriteLine($"****** {Message}");
     }
 }
 
-class CompileErrorsException : TellUserException, IOutcome
+class CompileException : Exception, IOutcome
 {
+    public int ExitCode { get; } = Program.ExitScriptCompile;
     public IReadOnlyList<Diagnostic> Errors { get; init; }
-    public CompileErrorsException(List<Diagnostic> errors) : base("Script compilation error", Program.ExitScriptCompile)
+
+    public CompileException(List<Diagnostic> errors) : base("Script compilation error")
     {
         Errors = errors;
     }
-
-    public override string Summary { get => $"abnormal exit; compile error in script"; }
-
-    public override void WriteFooter()
+    public CompileException(string error) : base(error)
     {
-        Console.WriteLine($"****** Script compilation error:");
-        foreach (var error in Errors)
+        Errors = null;
+    }
+
+    public string Summary { get => $"abnormal exit; compile error in script"; }
+
+    public void WriteFooter()
+    {
+        if (Errors == null)
         {
-            Console.WriteLine($"******");
-            Console.WriteLine($"****** [{error.Location.GetMappedLineSpan().StartLinePosition}]: {error.GetMessage()}");
+            Console.WriteLine($"****** {Message}");
         }
-        Console.WriteLine($"******");
+        else
+        {
+            Console.WriteLine($"****** Script compilation error:");
+            foreach (var error in Errors)
+            {
+                Console.WriteLine($"******");
+                Console.WriteLine($"****** [{error.Location.GetMappedLineSpan().StartLinePosition}]: {error.GetMessage()}");
+            }
+            Console.WriteLine($"******");
+        }
     }
 }
 
-class ScriptException : TellUserException, IOutcome
+class ScriptException : Exception, IOutcome
 {
-    public ScriptException(TargetInvocationException e) : base("Unhandled exception in script", e.InnerException, Program.ExitScriptException)
-    {
-    }
+    public int ExitCode { get; } = Program.ExitScriptException;
 
-    public override string Summary { get => $"abnormal exit; unhandled exception in script"; }
+    public ScriptException(TargetInvocationException e) : base("Unhandled exception in script", e.InnerException) { }
 
-    public override void WriteFooter()
+    public string Summary { get => $"abnormal exit; unhandled exception in script"; }
+
+    public void WriteFooter()
     {
         Console.WriteLine($"****** Unhandled exception in script:");
         foreach (var excp in InnerException.SelectChain(ee => ee.InnerException))

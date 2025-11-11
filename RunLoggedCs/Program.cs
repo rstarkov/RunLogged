@@ -21,10 +21,10 @@ static class Program
     static IOutcome _outcome;
     static DateTime _startedAt = DateTime.UtcNow;
 
-    public const int ExitScriptException = -100;
-    public const int ExitScriptCompile = -101;
-    public const int ExitStartupError = -102;
-    public const int ExitInternalError = -103;
+    public const int ExitScriptException = -100; // the script compiled and ran, but threw an unhandled exception
+    public const int ExitScriptCompile = -101; // we have the script, but we couldn't compile or run it due to a problem with the script
+    public const int ExitStartupError = -102; // there's a problem that prevented us from even attempting to compile and execute the script
+    public const int ExitInternalError = -103; // a bug in the runner
 
     static int Main(string[] args)
     {
@@ -32,14 +32,14 @@ static class Program
         {
             DoMain(args);
         }
-        catch (TellUserException ex)
+        catch (Exception ex) when (ex is IOutcome exo)
         {
-            _outcome = ex;
+            _outcome = exo;
         }
 #if !DEBUG
         catch (Exception ex)
         {
-            _outcome = new TellUserException($"Internal error: {ex.GetType().Name}, {ex.Message}, {ex.StackTrace}", ExitInternalError);
+            _outcome = new InternalError { Exception = ex };
         }
 #endif
         Console.WriteLine(); // script may not have written anything, or may have written text without a newline
@@ -59,7 +59,7 @@ static class Program
 
         // Report if no arguments - might go to Telegram if configured globally
         if (args.Length == 0)
-            throw new TellUserException($"Usage: RunLoggedCs.exe <script.cs> [arg0 ...]", ExitStartupError);
+            throw new StartupException($"Usage: RunLoggedCs.exe <script.cs> [arg0 ...]");
 
         // Parse args and load script-specific settings, if any
         var scriptFile = Path.GetFullPath(args[0]);
@@ -119,7 +119,7 @@ static class Program
     {
         // Load the script code
         if (!File.Exists(scriptFile))
-            throw new TellUserException($"Script file not found: {scriptFile}", ExitStartupError);
+            throw new StartupException($"Script file not found: {scriptFile}");
         var code = File.ReadAllText(scriptFile);
         code = new[]
         {
@@ -151,7 +151,7 @@ static class Program
         {
             var errors = diagnostics.Where(e => e.Severity == DiagnosticSeverity.Error).ToList();
             if (errors.Count > 0)
-                throw new CompileErrorsException(errors);
+                throw new CompileException(errors);
         }
         throwIfErrors(comp.GetDiagnostics());
         var ms = new MemoryStream();
@@ -181,10 +181,10 @@ static class Program
             else
                 continue;
             if (main != null && had)
-                throw new TellUserException($"Found multiple candidates for the Main method (entry point).", ExitScriptCompile);
+                throw new CompileException($"Found multiple candidates for the Main method (entry point).");
         }
         if (main == null)
-            throw new TellUserException($"No candidates found for the Main method (entry point).", ExitScriptCompile);
+            throw new CompileException($"No candidates found for the Main method (entry point).");
         return main;
     }
 }
