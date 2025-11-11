@@ -9,13 +9,13 @@ namespace RunLoggedCs;
 interface IOutcome
 {
     int ExitCode { get; }
-    void WriteToConsole();
+    void WriteFooter();
 }
 
 class ScriptSuccess : IOutcome
 {
     public int ExitCode { get; set; }
-    public void WriteToConsole()
+    public void WriteFooter()
     {
         Console.WriteLine($"****** exit code: {ExitCode} (success)");
     }
@@ -24,7 +24,7 @@ class ScriptSuccess : IOutcome
 class ScriptFailure : IOutcome
 {
     public int ExitCode { get; set; }
-    public void WriteToConsole()
+    public void WriteFooter()
     {
         Console.WriteLine($"****** exit code: {ExitCode} (failure)");
     }
@@ -41,7 +41,7 @@ class TellUserException : Exception, IOutcome
     {
         ExitCode = exitcode;
     }
-    public virtual void WriteToConsole()
+    public virtual void WriteFooter()
     {
         Console.WriteLine($"****** {Message}");
         Console.WriteLine($"****** exit code: {ExitCode} (abnormal exit; startup error)");
@@ -56,7 +56,7 @@ class CompileErrorsException : TellUserException, IOutcome
         Errors = errors;
     }
 
-    public override void WriteToConsole()
+    public override void WriteFooter()
     {
         Console.WriteLine($"****** Script compilation error:");
         foreach (var error in Errors)
@@ -75,7 +75,7 @@ class ScriptException : TellUserException, IOutcome
     {
     }
 
-    public override void WriteToConsole()
+    public override void WriteFooter()
     {
         Console.WriteLine($"****** Unhandled exception in script:");
         foreach (var excp in InnerException.SelectChain(ee => ee.InnerException))
