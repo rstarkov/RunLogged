@@ -9,21 +9,15 @@ namespace RunLoggedCs.ScriptUtil;
 public class Telegram
 {
     private static HttpClient _http = new();
-    private static Settings _settings;
-    private static string _sender;
-
-    internal static void Init(Settings settings, string scriptName)
-    {
-        _settings = settings;
-        _sender = $"<b>{settings.MachineName}</b> - <b>{scriptName.HtmlEscape()}</b>";
-    }
+    private static TelegramSettings _settings => Program.Settings.Telegram;
+    private static string _sender => $"<b>{Program.Settings.MachineName}</b> - <b>{Program.ScriptName.HtmlEscape()}</b>";
 
     public static async Task SendRawAsync(bool warn, string html)
     {
         try
         {
-            var botToken = warn ? _settings.Telegram?.WarnBotToken : _settings.Telegram?.InfoBotToken;
-            if (botToken == null || _settings.Telegram.Recipient == null)
+            var botToken = warn ? _settings?.WarnBotToken : _settings?.InfoBotToken;
+            if (botToken == null || _settings.Recipient == null)
             {
                 Console.WriteLine("TELEGRAM: skipping send because bot token or recipient is not set");
                 return;
@@ -31,7 +25,7 @@ public class Telegram
             Console.WriteLine($"Telegram {(warn ? "WARN" : "info")}: {html}");
             html = _sender + ":\n" + html;
             var url = new UrlHelper($"https://api.telegram.org/bot{botToken}/sendMessage");
-            url.AddQuery("chat_id", _settings.Telegram.Recipient).AddQuery("parse_mode", "HTML").AddQuery("text", html);
+            url.AddQuery("chat_id", _settings.Recipient).AddQuery("parse_mode", "HTML").AddQuery("text", html);
             var resp = await _http.GetAsync(url);
             if ((int)resp.StatusCode != 200)
                 Console.WriteLine($"TELEGRAM: status {(int)resp.StatusCode}, {await resp.Content.ReadAsStringAsync()}");

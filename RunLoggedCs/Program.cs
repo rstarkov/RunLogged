@@ -13,10 +13,10 @@ namespace RunLoggedCs;
 
 static class Program
 {
+    public static Settings Settings;
+    public static string ScriptName = "(unknown)"; // without path or extension
+
     static TextWriter _writer;
-    static string _scriptName = "(unknown)"; // without path or extension
-    static string _scriptDir = null;
-    static Settings _settings;
     static List<string> _warnings = [];
     static List<string> _settingsFiles = [];
     static IOutcome _outcome;
@@ -57,7 +57,7 @@ static class Program
     static void DoMain(string[] args)
     {
         // Load core settings that apply to all scripts
-        _settings = Settings.GetDefault();
+        Settings = Settings.GetDefault();
         TryLoadSettings(Path.Combine(AppContext.BaseDirectory, "Settings.RunLoggedCs.xml"));
         TryLoadSettings(Path.Combine(AppContext.BaseDirectory, $"Settings.RunLoggedCs.{Environment.MachineName}.xml"));
 
@@ -68,15 +68,13 @@ static class Program
         // Parse args and load script-specific settings, if any
         var scriptFile = Path.GetFullPath(args[0]);
         args = args.Skip(1).ToArray();
-        _scriptDir = Path.GetDirectoryName(scriptFile);
-        _scriptName = Path.GetFileNameWithoutExtension(scriptFile);
-        TryLoadSettings(Path.Combine(_scriptDir, $"{_scriptName}.RunLoggedCs.xml"));
-        TryLoadSettings(Path.Combine(_scriptDir, $"{_scriptName}.RunLoggedCs.{Environment.MachineName}.xml"));
-        // Configure modules
-        Telegram.Init(_settings, _scriptName);
+        var scriptDir = Path.GetDirectoryName(scriptFile);
+        ScriptName = Path.GetFileNameWithoutExtension(scriptFile);
+        TryLoadSettings(Path.Combine(scriptDir, $"{ScriptName}.RunLoggedCs.xml"));
+        TryLoadSettings(Path.Combine(scriptDir, $"{ScriptName}.RunLoggedCs.{Environment.MachineName}.xml"));
 
         // Send StdOut to a file log, now that we know where to log
-        _writer = new LogAndConsoleWriter(_scriptName + ".log"); // also sets Console.Out to self
+        _writer = new LogAndConsoleWriter(ScriptName + ".log"); // also sets Console.Out to self
 
         // Log header
         Console.WriteLine($"************************************************************************");
@@ -112,7 +110,7 @@ static class Program
             if (!File.Exists(fullname))
                 return;
             var settings = Settings.LoadFromFile(fullname);
-            _settings.AddOverrides(settings);
+            Settings.AddOverrides(settings);
             _settingsFiles.Add(fullname);
         }
         catch (Exception e)
@@ -197,12 +195,12 @@ static class Program
     static void NotifyOutcome()
     {
         // Report warnings to Telegram
-        if (_warnings.Count > 0 && _settings.Telegram?.WarnBotToken != null)
+        if (_warnings.Count > 0 && Settings.Telegram?.WarnBotToken != null)
             Telegram.Send(warn: true, html: _warnings.JoinString("\n"));
         // Report outcome to TG
-        if (_outcome is ScriptSuccess ss && _settings.Telegram?.NotifyOnSuccess == true)
+        if (_outcome is ScriptSuccess ss && Settings.Telegram?.NotifyOnSuccess == true)
             Telegram.Send(warn: false, html: $"{_outcome.Summary}; exit code {_outcome.ExitCode}; {_duration.TotalSeconds:#,0.0} seconds");
-        else if (_outcome is not ScriptSuccess && _settings.Telegram?.WarnBotToken != null)
+        else if (_outcome is not ScriptSuccess && Settings.Telegram?.WarnBotToken != null)
             Telegram.Send(warn: true, html: $"{_outcome.Summary}; exit code {_outcome.ExitCode}; {_duration.TotalSeconds:#,0.0} seconds");
     }
 }
