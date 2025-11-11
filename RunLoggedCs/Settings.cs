@@ -41,4 +41,5 @@ class TelegramSettings
     public string InfoBotToken;
     public string WarnBotToken;
     public string Recipient;
+    public bool NotifyOnSuccess;
 }

@@ -7,6 +7,7 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using RT.Util;
 using RT.Util.ExtensionMethods;
+using RunLoggedCs.ScriptUtil;
 
 namespace RunLoggedCs;
 
@@ -20,6 +21,7 @@ static class Program
     static List<string> _settingsFiles = [];
     static IOutcome _outcome;
     static DateTime _startedAt = DateTime.UtcNow;
+    static TimeSpan _duration;
 
     public const int ExitScriptException = -100; // the script compiled and ran, but threw an unhandled exception
     public const int ExitScriptCompile = -101; // we have the script, but we couldn't compile or run it due to a problem with the script
@@ -42,10 +44,12 @@ static class Program
             _outcome = new InternalError { Exception = ex };
         }
 #endif
+        _duration = DateTime.UtcNow - _startedAt;
         Console.WriteLine(); // script may not have written anything, or may have written text without a newline
+        NotifyOutcome();
         _outcome.WriteFooter();
+        Console.WriteLine($"****** exit at: {DateTime.UtcNow.ToLocalTime():yyyy-MM-dd HH:mm:ss} (ran for {_duration.TotalSeconds:#,0.0} seconds)");
         Console.WriteLine($"****** exit code: {_outcome.ExitCode} ({_outcome.Summary})");
-        Console.WriteLine($"****** exit at: {DateTime.UtcNow.ToLocalTime():yyyy-MM-dd HH:mm:ss} (ran for {(DateTime.UtcNow - _startedAt).TotalSeconds:#,0.0} seconds)");
         _writer?.Dispose(); // also restores Console.Out to original
         return _outcome.ExitCode;
     }
@@ -68,6 +72,8 @@ static class Program
         _scriptName = Path.GetFileNameWithoutExtension(scriptFile);
         TryLoadSettings(Path.Combine(_scriptDir, $"{_scriptName}.RunLoggedCs.xml"));
         TryLoadSettings(Path.Combine(_scriptDir, $"{_scriptName}.RunLoggedCs.{Environment.MachineName}.xml"));
+        // Configure modules
+        Telegram.Init(_settings, _scriptName);
 
         // Send StdOut to a file log, now that we know where to log
         _writer = new LogAndConsoleWriter(_scriptName + ".log"); // also sets Console.Out to self
@@ -186,5 +192,17 @@ static class Program
         if (main == null)
             throw new CompileException($"No candidates found for the Main method (entry point).");
         return main;
+    }
+
+    static void NotifyOutcome()
+    {
+        // Report warnings to Telegram
+        if (_settings.Telegram?.WarnBotToken != null)
+            Telegram.Send(warn: true, html: _warnings.JoinString("\n"));
+        // Report outcome to TG
+        if (_outcome is ScriptSuccess ss && _settings.Telegram?.NotifyOnSuccess == true)
+            Telegram.Send(warn: true, html: $"{_outcome.Summary}; exit code {_outcome.ExitCode}; {_duration.TotalSeconds:#,0.0} seconds");
+        else if (_outcome is not ScriptSuccess && _settings.Telegram?.WarnBotToken != null)
+            Telegram.Send(warn: true, html: $"{_outcome.Summary}; exit code {_outcome.ExitCode}; {_duration.TotalSeconds:#,0.0} seconds");
     }
 }
