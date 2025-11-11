@@ -77,6 +77,7 @@ static class Program
         _writer = new LogAndConsoleWriter(ScriptName + ".log"); // also sets Console.Out to self
 
         // Log header
+        Console.WriteLine(); // previous log may not have had a proper newline
         Console.WriteLine($"************************************************************************");
         Console.WriteLine($"****** RunLoggedCs v[DEV] invoked at {_startedAt.ToLocalTime():yyyy-MM-dd HH:mm:ss}");
         Console.WriteLine($"****** Script: |{scriptFile}|");
@@ -84,6 +85,7 @@ static class Program
         Console.WriteLine($"****** CurDir: |{Directory.GetCurrentDirectory()}|");
         foreach (var sf in _settingsFiles)
             Console.WriteLine($"****** Settings file: |{sf}|");
+        Console.WriteLine();
 
         // Compile everything and get a runnable function
         var main = CompileScript(scriptFile);
@@ -201,6 +203,6 @@ static class Program
         if (_outcome is ScriptSuccess ss && Settings.Telegram?.NotifyOnSuccess == true)
             Telegram.Send(warn: false, html: $"{_outcome.Summary}; exit code {_outcome.ExitCode}; {_duration.TotalSeconds:#,0.0} seconds");
         else if (_outcome is not ScriptSuccess && Settings.Telegram?.WarnBotToken != null)
-            Telegram.Send(warn: true, html: $"{_outcome.Summary}; exit code {_outcome.ExitCode}; {_duration.TotalSeconds:#,0.0} seconds");
+            Telegram.Send(warn: true, html: $"{_outcome.Summary}; exit code {_outcome.ExitCode}; {_duration.TotalSeconds:#,0.0} seconds{(_outcome is Exception e ? $"\n{e.Message.HtmlEscape()}" : "")}");
     }
 }
