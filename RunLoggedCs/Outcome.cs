@@ -82,7 +82,9 @@ class CompileException : Exception, IOutcome
             foreach (var error in Errors)
             {
                 Console.WriteLine($"******");
-                Console.WriteLine($"****** [{error.Location.GetMappedLineSpan().StartLinePosition}]: {error.GetMessage()}");
+                var sp = error.Location.GetMappedLineSpan().StartLinePosition;
+                var ep = error.Location.GetMappedLineSpan().EndLinePosition;
+                Console.WriteLine($"****** [line {sp.Line + 1}{(sp.Line == ep.Line ? "" : $"-{ep.Line + 1}")}, col {sp.Character + 1}{(sp == ep ? "" : $"-{ep.Character + 1}")}]: {error.GetMessage()}");
             }
             Console.WriteLine($"******");
         }

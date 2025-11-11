@@ -128,15 +128,7 @@ static class Program
         if (!File.Exists(scriptFile))
             throw new StartupException($"Script file not found: {scriptFile}");
         var code = File.ReadAllText(scriptFile);
-        code = new[]
-        {
-            "using System;",
-            "using System.Collections.Generic;",
-            "using System.Threading;",
-            "using System.Text.RegularExpressions;",
-            "#line 2",
-            code,
-        }.JoinString("\r\n");
+        code = Settings.Usings.Distinct().Select(u => $"using {u};").Concat(["#line 1", code]).JoinString("\r\n");
 
         // Compile the script
         var tree = CSharpSyntaxTree.ParseText(code, new CSharpParseOptions().WithKind(SourceCodeKind.Regular));

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using RT.Serialization;
 
 namespace RunLoggedCs;
@@ -6,6 +7,7 @@ namespace RunLoggedCs;
 class Settings
 {
     public string MachineName;
+    public List<string> Usings;
     public TelegramSettings Telegram;
 
     public static Settings GetDefault()
@@ -13,6 +15,7 @@ class Settings
         return new Settings
         {
             MachineName = Environment.MachineName,
+            Usings = [],
             Telegram = null,
         };
     }
@@ -25,6 +28,7 @@ class Settings
     public void AddOverrides(Settings settings)
     {
         if (settings.MachineName != null) MachineName = settings.MachineName;
+        if (settings.Usings != null) Usings.AddRange(settings.Usings);
         if (Telegram == null)
             Telegram = settings.Telegram;
         if (Telegram != null && settings.Telegram != null)
