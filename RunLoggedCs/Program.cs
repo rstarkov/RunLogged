@@ -7,6 +7,7 @@ using System.Reflection;
 using System.Text;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.Emit;
 using RT.Util;
 using RT.Util.ExtensionMethods;
 using RunLoggedCs.ScriptUtil;
@@ -138,8 +139,8 @@ static class Program
         code = Settings.Usings.Distinct().Select(u => $"using {u};").Concat(["#line 1", code]).JoinString("\r\n");
 
         // Compile the script
-        var tree = CSharpSyntaxTree.ParseText(code, new CSharpParseOptions().WithKind(SourceCodeKind.Regular));
-        var opts = new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary);
+        var tree = CSharpSyntaxTree.ParseText(code, path: scriptFile, encoding: Encoding.UTF8, options: new CSharpParseOptions().WithKind(SourceCodeKind.Regular));
+        var opts = new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary).WithOptimizationLevel(OptimizationLevel.Debug);
         var comp = CSharpCompilation.Create("script", options: opts).AddSyntaxTrees(tree);
 
         var added = new HashSet<Assembly>();
@@ -161,7 +162,7 @@ static class Program
         }
         throwIfErrors(comp.GetDiagnostics());
         var ms = new MemoryStream();
-        var result = comp.Emit(ms);
+        var result = comp.Emit(ms, options: new EmitOptions(debugInformationFormat: DebugInformationFormat.Embedded));
         throwIfErrors(result.Diagnostics);
         Ut.Assert(result.Success);
 
