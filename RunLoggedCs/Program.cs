@@ -345,9 +345,9 @@ static class Program
         return currentPath;
     }
 
-    public static void WriteLinePrefixed(string text)
+    public static void WriteLinePrefixed(string text, int hanging = 0)
     {
-        Console.WriteLine($"****** {text.Replace("\n", "\n****** ")}");
+        Console.WriteLine($"****** {text.Replace("\n", $"\n****** {new string(' ', hanging)}")}");
     }
 
     public static void Warn(string warning)
