@@ -19,23 +19,24 @@ public class Telegram
             var botToken = warn ? _settings?.WarnBotToken : _settings?.InfoBotToken;
             if (botToken == null || _settings.Recipient == null)
             {
-                Console.WriteLine("TELEGRAM: skipping send because bot token or recipient is not set");
+                Warn("[Telegram] Skipping send because bot token or recipient is not set");
                 return;
             }
-            Console.WriteLine($"Telegram {(warn ? "WARN" : "info")}: {html}");
+            Console.WriteLine($"****** Telegram {(warn ? "WARN" : "info")}: {html.Replace("\n", "\n****** ")}");
             html = _sender + ":\n" + html;
             var url = new UrlHelper($"https://api.telegram.org/bot{botToken}/sendMessage");
             url.AddQuery("chat_id", _settings.Recipient).AddQuery("parse_mode", "HTML").AddQuery("text", html);
             var resp = await _http.GetAsync(url);
             if ((int)resp.StatusCode != 200)
-                Console.WriteLine($"TELEGRAM: status {(int)resp.StatusCode}, {await resp.Content.ReadAsStringAsync()}");
+                Warn($"[Telegram] Status {(int)resp.StatusCode}, {await resp.Content.ReadAsStringAsync()}");
         }
         catch (Exception e)
         {
-            Console.WriteLine($"TELEGRAM: {e.GetType().Name}, {e.Message}");
+            Warn($"[Telegram] {e.GetType().Name}, {e.Message}");
         }
     }
 
+    /// <summary>Use to send a custom Telegram notification to the info or the warning channel.</summary>
     public static Task SendAsync(bool warn, string text = null, string html = null)
     {
         if (text != null && html == null)
@@ -43,9 +44,18 @@ public class Telegram
         return SendRawAsync(warn, html);
     }
 
+    /// <summary>Use to send a custom Telegram notification to the info or the warning channel.</summary>
     public static void Send(bool warn, string text = null, string html = null)
     {
         SendAsync(warn, text, html).ConfigureAwait(false).GetAwaiter().GetResult();
+    }
+
+    /// <summary>
+    ///     Use to send a non-critical failure notification (when script can continue). If the failure is critical prefer
+    ///     throwing or a custom message.</summary>
+    public static void Warn(string warning)
+    {
+        Program.Warn(warning);
     }
 }
 

@@ -20,7 +20,7 @@ static class Program
     public static string ScriptDir;
 
     static LogAndConsoleWriter _writer;
-    static List<string> _warnings = []; // issues not critical enough to abort a run, but important enough to be worth a Telegram alert
+    static List<string> _warnings = []; // issues not critical enough to abort a run, but important enough to be worth a Telegram warning
     static List<string> _infos = []; // things we want logged before we know where to log them to
     static IOutcome _outcome;
     static DateTime _startedAt = DateTime.UtcNow;
@@ -89,9 +89,11 @@ static class Program
         Console.WriteLine($"****** Script: |{scriptFile}|");
         Console.WriteLine($"****** Script args: {(args.Length == 0 ? "(none)" : args.JoinString(" ", "|", "|"))}");
         Console.WriteLine($"****** CurDir: |{Directory.GetCurrentDirectory()}|");
+        Console.WriteLine($"****** Logging to file: {(logFile == null ? "disabled" : $"|{logFile}|")}");
         foreach (var info in _infos)
             Console.WriteLine($"****** {info}");
         Console.WriteLine();
+        _infos = null;
 
         // Compile everything and get a runnable function
         var main = CompileScript(scriptFile);
@@ -123,7 +125,7 @@ static class Program
         }
         catch (Exception e)
         {
-            _warnings.Add($"Could not load settings from {fullname}: {e.GetType().Name}, {e.Message}");
+            Warn($"Could not load settings from {fullname}: {e.GetType().Name}, {e.Message}");
         }
     }
 
@@ -232,7 +234,7 @@ static class Program
             try { Directory.CreateDirectory(logdir); }
             catch
             {
-                _warnings.Add($"Could not start logging; path: {logdir}"); // permission error or template in directory name
+                Warn($"Could not start logging; path: {logdir}"); // permission error or template in directory name
                 return null;
             }
         }
@@ -270,7 +272,7 @@ static class Program
                             file.Delete();
                             _infos.Add($"Deleted log file due to age limit: {file.FullName}");
                         }
-                        catch { _warnings.Add($"Could not delete old log file (1): {file.FullName}"); }
+                        catch { Warn($"Could not delete old log file (1): {file.FullName}"); }
                     }
                     else
                         kept.Add((file, lastlog));
@@ -291,7 +293,7 @@ static class Program
                             _infos.Add($"Deleted log file due to size limit: {k.file.FullName}");
                             totalSize -= size;
                         }
-                        catch { _warnings.Add($"Could not delete log file (2): {k.file.FullName}"); }
+                        catch { Warn($"Could not delete log file (2): {k.file.FullName}"); }
                     }
                 }
             }
@@ -325,10 +327,19 @@ static class Program
         catch (Exception e)
         {
             // There are many ways for log trimming to fail. If it does, log a generic warning but leave logging enabled.
-            _warnings.Add($"Error while trimming logs: {e.GetType().Name}, {e.Message}");
+            Warn($"Error while trimming logs: {e.GetType().Name}, {e.Message}");
         }
 
         return currentPath;
+    }
+
+    public static void Warn(string warning)
+    {
+        _warnings.Add(warning);
+        if (_infos != null)
+            _infos.Add($"WARNING: {warning}");
+        else
+            Console.WriteLine($"****** WARNING: {warning}");
     }
 
     static void NotifyOutcome()
@@ -341,8 +352,5 @@ static class Program
             Telegram.Send(warn: false, html: $"{_outcome.Summary}; exit code {_outcome.ExitCode}; {_duration.TotalSeconds:#,0.0} seconds");
         else if (_outcome is not ScriptSuccess && Settings.Telegram?.WarnBotToken != null)
             Telegram.Send(warn: true, html: $"{_outcome.Summary}; exit code {_outcome.ExitCode}; {_duration.TotalSeconds:#,0.0} seconds{(_outcome is Exception e ? $"\n{e.Message.HtmlEscape()}" : "")}");
-        // Log warnings to console/log file
-        foreach (var warning in _warnings)
-            Console.WriteLine($"****** warning: {warning}");
     }
 }
