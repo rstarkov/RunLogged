@@ -17,7 +17,7 @@ class LogAndConsoleWriter : TextWriter
         _conWriter = Console.Out;
         IsNewFile = !File.Exists(logFilename);
         _logStream = File.Open(logFilename, FileMode.Append, FileAccess.Write, FileShare.Read);
-        _logWriter = new StreamWriter(_logStream);
+        _logWriter = new StreamWriter(_logStream) { AutoFlush = true };
         Console.SetOut(this);
     }
 
