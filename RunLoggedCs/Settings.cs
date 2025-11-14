@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 using RT.Serialization;
 
 namespace RunLoggedCs;
@@ -34,6 +36,12 @@ class Settings
     public static Settings LoadFromFile(string path)
     {
         return ClassifyXml.DeserializeFile<Settings>(path);
+    }
+
+    public void ExpandPaths(string rootDir)
+    {
+        if (IncludeScripts != null)
+            IncludeScripts = IncludeScripts.Select(p => Path.GetFullPath(Path.Combine(rootDir, p))).ToList();
     }
 
     public void AddOverrides(Settings settings)

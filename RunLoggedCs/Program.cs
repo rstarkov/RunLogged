@@ -62,8 +62,8 @@ static class Program
     {
         // Load core settings that apply to all scripts
         Settings = Settings.GetDefault();
-        TryLoadSettings(Path.Combine(AppContext.BaseDirectory, "Settings.RunLoggedCs.xml"));
-        TryLoadSettings(Path.Combine(AppContext.BaseDirectory, $"Settings.RunLoggedCs.{Environment.MachineName}.xml"));
+        TryLoadSettings(AppContext.BaseDirectory, "Settings.RunLoggedCs.xml");
+        TryLoadSettings(AppContext.BaseDirectory, $"Settings.RunLoggedCs.{Environment.MachineName}.xml");
 
         // Report if no arguments - might go to Telegram if configured globally
         if (args.Length == 0)
@@ -74,8 +74,8 @@ static class Program
         args = args.Skip(1).ToArray();
         ScriptDir = Path.GetDirectoryName(scriptFile);
         ScriptName = Path.GetFileNameWithoutExtension(scriptFile);
-        TryLoadSettings(Path.Combine(ScriptDir, $"{ScriptName}.RunLoggedCs.xml"));
-        TryLoadSettings(Path.Combine(ScriptDir, $"{ScriptName}.RunLoggedCs.{Environment.MachineName}.xml"));
+        TryLoadSettings(ScriptDir, $"{ScriptName}.RunLoggedCs.xml");
+        TryLoadSettings(ScriptDir, $"{ScriptName}.RunLoggedCs.{Environment.MachineName}.xml");
 
         // Initialise StdOut logging, now that we know where to log
         var logFile = RotateLogsAndGetPath();
@@ -114,13 +114,15 @@ static class Program
         }
     }
 
-    static void TryLoadSettings(string fullname)
+    static void TryLoadSettings(string path, string filename)
     {
+        var fullname = Path.Combine(path, filename);
         try
         {
             if (!File.Exists(fullname))
                 return;
             var settings = Settings.LoadFromFile(fullname);
+            settings.ExpandPaths(path);
             Settings.AddOverrides(settings);
             _infos.Add($"Settings file: |{fullname}|");
         }
@@ -140,7 +142,7 @@ static class Program
         code = Settings.Usings.Distinct().Select(u => $"using {u};").Concat(["#line 1", code]).JoinString("\r\n");
         trees.Add(CSharpSyntaxTree.ParseText(code, path: scriptFile, encoding: Encoding.UTF8, options: new CSharpParseOptions().WithKind(SourceCodeKind.Regular)));
         // Load include sources
-        foreach (var includeFile in Settings.IncludeScripts)
+        foreach (var includeFile in Settings.IncludeScripts.Distinct(StringComparer.OrdinalIgnoreCase))
         {
             if (!File.Exists(includeFile))
                 throw new StartupException($"Included script file not found: {includeFile}");
