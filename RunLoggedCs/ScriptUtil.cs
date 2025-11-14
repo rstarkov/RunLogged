@@ -8,7 +8,6 @@ namespace RunLoggedCs.ScriptUtil;
 
 public class Telegram
 {
-    private static HttpClient _http = new();
     private static TelegramSettings _settings => Program.Settings.Telegram;
     private static string _sender => $"<b>{Program.Settings.MachineName}</b> - <b>{Program.ScriptName.HtmlEscape()}</b>";
 
@@ -26,7 +25,7 @@ public class Telegram
             html = _sender + ":\n" + html;
             var url = new UrlHelper($"https://api.telegram.org/bot{botToken}/sendMessage");
             url.AddQuery("chat_id", _settings.Recipient).AddQuery("parse_mode", "HTML").AddQuery("text", html);
-            var resp = await _http.GetAsync(url);
+            var resp = await url.PingAsync(quiet: true);
             if ((int)resp.StatusCode != 200)
                 Warn($"[Telegram] Status {(int)resp.StatusCode}, {await resp.Content.ReadAsStringAsync()}");
         }
@@ -61,6 +60,7 @@ public class Telegram
 
 public class UrlHelper
 {
+    private static HttpClient _http = new();
     private StringBuilder _url;
     private bool _hasQuery;
 
@@ -85,5 +85,18 @@ public class UrlHelper
     public static implicit operator string(UrlHelper urlHelper)
     {
         return urlHelper._url.ToString();
+    }
+
+    public async Task<HttpResponseMessage> PingAsync(bool quiet = false)
+    {
+        var resp = await _http.GetAsync(_url.ToString());
+        if ((int)resp.StatusCode != 200 && !quiet)
+            Telegram.Warn($"[UrlPing] Status {(int)resp.StatusCode}, {await resp.Content.ReadAsStringAsync()}");
+        return resp;
+    }
+
+    public HttpResponseMessage Ping(bool quiet = false)
+    {
+        return PingAsync().GetAwaiter().GetResult();
     }
 }

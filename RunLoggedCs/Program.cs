@@ -364,10 +364,20 @@ static class Program
         // Report warnings to Telegram
         if (_warnings.Count > 0 && Settings.Telegram?.WarnBotToken != null)
             Telegram.Send(warn: true, html: _warnings.Select(w => w.HtmlEscape()).JoinString("\n"));
-        // Report outcome to TG
-        if (_outcome is ScriptSuccess ss && Settings.Telegram?.NotifyOnSuccess == true)
-            Telegram.Send(warn: false, html: $"{_outcome.Summary}; exit code {_outcome.ExitCode}; {_duration.TotalSeconds:#,0.0} seconds");
-        else if (_outcome is not ScriptSuccess && Settings.Telegram?.WarnBotToken != null)
-            Telegram.Send(warn: true, html: $"{_outcome.Summary}; exit code {_outcome.ExitCode}; {_duration.TotalSeconds:#,0.0} seconds{(_outcome is Exception e ? $"\n{e.Message.HtmlEscape()}" : "")}");
+        // Report outcome
+        if (_outcome is ScriptSuccess ss)
+        {
+            if (Settings.Telegram?.InfoBotToken != null && Settings.Telegram?.NotifyOnSuccess == true)
+                Telegram.Send(warn: false, html: $"{_outcome.Summary}; exit code {_outcome.ExitCode}; {_duration.TotalSeconds:#,0.0} seconds");
+            if (Settings.PingUrlSuccess != null)
+                new UrlHelper(Settings.PingUrlSuccess).Ping();
+        }
+        else
+        {
+            if (Settings.Telegram?.WarnBotToken != null)
+                Telegram.Send(warn: true, html: $"{_outcome.Summary}; exit code {_outcome.ExitCode}; {_duration.TotalSeconds:#,0.0} seconds{(_outcome is Exception e ? $"\n{e.Message.HtmlEscape()}" : "")}");
+            if (Settings.PingUrlFail != null)
+                new UrlHelper(Settings.PingUrlFail).Ping();
+        }
     }
 }

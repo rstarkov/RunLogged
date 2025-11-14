@@ -14,6 +14,8 @@ class Settings
     //public List<string> IncludeDlls;
     public LogSettings Log;
     public TelegramSettings Telegram;
+    public string PingUrlSuccess;
+    public string PingUrlFail;
 
     public static Settings GetDefault()
     {
@@ -30,6 +32,8 @@ class Settings
                 MaxTotalSizeKB = 20_000,
             },
             Telegram = null,
+            PingUrlSuccess = null,
+            PingUrlFail = null,
         };
     }
 
@@ -66,6 +70,8 @@ class Settings
             if (settings.Telegram.WarnBotToken != null) Telegram.WarnBotToken = settings.Telegram.WarnBotToken;
             if (settings.Telegram.Recipient != null) Telegram.Recipient = settings.Telegram.Recipient;
         }
+        if (settings.PingUrlSuccess != null) PingUrlSuccess = settings.PingUrlSuccess;
+        if (settings.PingUrlFail != null) PingUrlFail = settings.PingUrlFail;
     }
 }
 
