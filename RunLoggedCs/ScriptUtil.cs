@@ -6,6 +6,22 @@ using RT.Util.ExtensionMethods;
 
 namespace RunLoggedCs.ScriptUtil;
 
+public class Log
+{
+    /// <summary>
+    ///     Use to send a non-critical failure notification (when script can continue). If the failure is critical prefer
+    ///     throwing, or sending a custom message via <see cref="Telegram.Send"/>.</summary>
+    public static void Warn(string warning)
+    {
+        Program.Warn(warning);
+    }
+
+    public static void WriteLinePrefixed(string text, int hanging = 0)
+    {
+        Program.WriteLinePrefixed(text, hanging);
+    }
+}
+
 public class Telegram
 {
     private static TelegramSettings _settings => Program.Settings.Telegram;
@@ -18,20 +34,20 @@ public class Telegram
             var botToken = warn ? _settings?.WarnBotToken : _settings?.InfoBotToken;
             if (botToken == null || _settings.Recipient == null)
             {
-                Warn("[Telegram] Skipping send because bot token or recipient is not set");
+                Log.Warn("[Telegram] Skipping send because bot token or recipient is not set");
                 return;
             }
-            Program.WriteLinePrefixed($"[Telegram {(warn ? "WARN" : "info")}] {html}", 16);
+            Log.WriteLinePrefixed($"[Telegram {(warn ? "WARN" : "info")}] {html}", 16);
             html = _sender + ":\n" + html;
             var url = new UrlHelper($"https://api.telegram.org/bot{botToken}/sendMessage");
             url.AddQuery("chat_id", _settings.Recipient).AddQuery("parse_mode", "HTML").AddQuery("text", html);
             var resp = await url.PingAsync(quiet: true);
             if ((int)resp.StatusCode != 200)
-                Warn($"[Telegram] Status {(int)resp.StatusCode}, {await resp.Content.ReadAsStringAsync()}");
+                Log.Warn($"[Telegram] Status {(int)resp.StatusCode}, {await resp.Content.ReadAsStringAsync()}");
         }
         catch (Exception e)
         {
-            Warn($"[Telegram] {e.GetType().Name}, {e.Message}");
+            Log.Warn($"[Telegram] {e.GetType().Name}, {e.Message}");
         }
     }
 
@@ -47,14 +63,6 @@ public class Telegram
     public static void Send(bool warn, string text = null, string html = null)
     {
         SendAsync(warn, text, html).ConfigureAwait(false).GetAwaiter().GetResult();
-    }
-
-    /// <summary>
-    ///     Use to send a non-critical failure notification (when script can continue). If the failure is critical prefer
-    ///     throwing or a custom message.</summary>
-    public static void Warn(string warning)
-    {
-        Program.Warn(warning);
     }
 }
 
@@ -89,9 +97,12 @@ public class UrlHelper
 
     public async Task<HttpResponseMessage> PingAsync(bool quiet = false)
     {
-        var resp = await _http.GetAsync(_url.ToString());
+        var url = _url.ToString();
+        if (!quiet)
+            Log.WriteLinePrefixed($"[UrlPing] Pinging URL {url}");
+        var resp = await _http.GetAsync(url);
         if ((int)resp.StatusCode != 200 && !quiet)
-            Telegram.Warn($"[UrlPing] Status {(int)resp.StatusCode}, {await resp.Content.ReadAsStringAsync()}");
+            Log.Warn($"[UrlPing] Status {(int)resp.StatusCode}, {await resp.Content.ReadAsStringAsync()}");
         return resp;
     }
 
