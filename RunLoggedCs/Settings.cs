@@ -69,6 +69,7 @@ class Settings
             if (settings.Telegram.InfoBotToken != null) Telegram.InfoBotToken = settings.Telegram.InfoBotToken;
             if (settings.Telegram.WarnBotToken != null) Telegram.WarnBotToken = settings.Telegram.WarnBotToken;
             if (settings.Telegram.Recipient != null) Telegram.Recipient = settings.Telegram.Recipient;
+            if (settings.Telegram.NotifyOnSuccess != null) Telegram.NotifyOnSuccess = settings.Telegram.NotifyOnSuccess;
         }
         if (settings.PingUrlSuccess != null) PingUrlSuccess = settings.PingUrlSuccess;
         if (settings.PingUrlFail != null) PingUrlFail = settings.PingUrlFail;
@@ -88,5 +89,5 @@ class TelegramSettings
     public string InfoBotToken;
     public string WarnBotToken;
     public string Recipient;
-    public bool NotifyOnSuccess;
+    public bool? NotifyOnSuccess;
 }
