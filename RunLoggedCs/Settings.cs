@@ -8,6 +8,8 @@ class Settings
 {
     public string MachineName;
     public List<string> Usings;
+    public List<string> IncludeScripts;
+    //public List<string> IncludeDlls;
     public LogSettings Log;
     public TelegramSettings Telegram;
 
@@ -17,6 +19,7 @@ class Settings
         {
             MachineName = Environment.MachineName,
             Usings = [],
+            IncludeScripts = [],
             Log = new()
             {
                 Enabled = true,
@@ -37,6 +40,7 @@ class Settings
     {
         if (settings.MachineName != null) MachineName = settings.MachineName;
         if (settings.Usings != null) Usings.AddRange(settings.Usings);
+        if (settings.IncludeScripts != null) IncludeScripts.AddRange(settings.IncludeScripts);
         if (Log == null)
             Log = settings.Log;
         if (Log != null && settings.Log != null)

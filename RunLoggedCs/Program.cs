@@ -132,16 +132,25 @@ static class Program
 
     static Func<string[], int> CompileScript(string scriptFile)
     {
-        // Load the script code
+        // Load the script source
+        var trees = new List<SyntaxTree>();
         if (!File.Exists(scriptFile))
             throw new StartupException($"Script file not found: {scriptFile}");
         var code = File.ReadAllText(scriptFile);
         code = Settings.Usings.Distinct().Select(u => $"using {u};").Concat(["#line 1", code]).JoinString("\r\n");
+        trees.Add(CSharpSyntaxTree.ParseText(code, path: scriptFile, encoding: Encoding.UTF8, options: new CSharpParseOptions().WithKind(SourceCodeKind.Regular)));
+        // Load include sources
+        foreach (var includeFile in Settings.IncludeScripts)
+        {
+            if (!File.Exists(includeFile))
+                throw new StartupException($"Included script file not found: {includeFile}");
+            var includeCode = File.ReadAllText(includeFile);
+            trees.Add(CSharpSyntaxTree.ParseText(includeCode, path: includeFile, encoding: Encoding.UTF8, options: new CSharpParseOptions().WithKind(SourceCodeKind.Regular)));
+        }
 
         // Compile the script
-        var tree = CSharpSyntaxTree.ParseText(code, path: scriptFile, encoding: Encoding.UTF8, options: new CSharpParseOptions().WithKind(SourceCodeKind.Regular));
         var opts = new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary).WithOptimizationLevel(OptimizationLevel.Debug);
-        var comp = CSharpCompilation.Create("script", options: opts).AddSyntaxTrees(tree);
+        var comp = CSharpCompilation.Create("script", options: opts).AddSyntaxTrees(trees);
 
         var added = new HashSet<Assembly>();
         void addAssembly(Assembly assy)
