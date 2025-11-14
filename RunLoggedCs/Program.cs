@@ -51,8 +51,8 @@ static class Program
         Console.WriteLine(); // script may not have written anything, or may have written text without a newline
         NotifyOutcome();
         _outcome.WriteFooter();
-        Console.WriteLine($"****** exit at: {DateTime.UtcNow.ToLocalTime():yyyy-MM-dd HH:mm:ss} (ran for {_duration.TotalSeconds:#,0.0} seconds)");
-        Console.WriteLine($"****** exit code: {_outcome.ExitCode} ({_outcome.Summary})");
+        WriteLinePrefixed($"exit at: {DateTime.UtcNow.ToLocalTime():yyyy-MM-dd HH:mm:ss} (ran for {_duration.TotalSeconds:#,0.0} seconds)");
+        WriteLinePrefixed($"exit code: {_outcome.ExitCode} ({_outcome.Summary})");
         _writer?.Dispose(); // also restores Console.Out to original
         return _outcome.ExitCode;
     }
@@ -85,13 +85,13 @@ static class Program
         if (_writer?.IsNewFile == false)
             Console.WriteLine(); // previous log may not have had a proper newline
         Console.WriteLine($"************************************************************************");
-        Console.WriteLine($"****** RunLoggedCs v[DEV] invoked at {_startedAt.ToLocalTime():yyyy-MM-dd HH:mm:ss}");
-        Console.WriteLine($"****** Script: |{scriptFile}|");
-        Console.WriteLine($"****** Script args: {(args.Length == 0 ? "(none)" : args.JoinString(" ", "|", "|"))}");
-        Console.WriteLine($"****** CurDir: |{Directory.GetCurrentDirectory()}|");
-        Console.WriteLine($"****** Logging to file: {(logFile == null ? "disabled" : $"|{logFile}|")}");
+        WriteLinePrefixed($"RunLoggedCs v[DEV] invoked at {_startedAt.ToLocalTime():yyyy-MM-dd HH:mm:ss}");
+        WriteLinePrefixed($"Script: |{scriptFile}|");
+        WriteLinePrefixed($"Script args: {(args.Length == 0 ? "(none)" : args.JoinString(" ", "|", "|"))}");
+        WriteLinePrefixed($"CurDir: |{Directory.GetCurrentDirectory()}|");
+        WriteLinePrefixed($"Logging to file: {(logFile == null ? "disabled" : $"|{logFile}|")}");
         foreach (var info in _infos)
-            Console.WriteLine($"****** {info}");
+            WriteLinePrefixed(info);
         Console.WriteLine();
         _infos = null;
 
@@ -333,13 +333,18 @@ static class Program
         return currentPath;
     }
 
+    public static void WriteLinePrefixed(string text)
+    {
+        Console.WriteLine($"****** {text.Replace("\n", "\n****** ")}");
+    }
+
     public static void Warn(string warning)
     {
         _warnings.Add(warning);
         if (_infos != null)
             _infos.Add($"WARNING: {warning}");
         else
-            Console.WriteLine($"****** WARNING: {warning}");
+            WriteLinePrefixed($"WARNING: {warning}");
     }
 
     static void NotifyOutcome()

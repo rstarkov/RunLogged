@@ -22,7 +22,7 @@ public class Telegram
                 Warn("[Telegram] Skipping send because bot token or recipient is not set");
                 return;
             }
-            Console.WriteLine($"****** Telegram {(warn ? "WARN" : "info")}: {html.Replace("\n", "\n****** ")}");
+            Program.WriteLinePrefixed($"[Telegram {(warn ? "WARN" : "info")}] {html}");
             html = _sender + ":\n" + html;
             var url = new UrlHelper($"https://api.telegram.org/bot{botToken}/sendMessage");
             url.AddQuery("chat_id", _settings.Recipient).AddQuery("parse_mode", "HTML").AddQuery("text", html);
