@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using Microsoft.CodeAnalysis;
 using RT.Util.ExtensionMethods;
@@ -102,11 +103,23 @@ class ScriptException : Exception, IOutcome
     public void WriteFooter()
     {
         Console.WriteLine($"****** Unhandled exception in script:");
+        bool skipInvoker = true;
         foreach (var excp in InnerException.SelectChain(ee => ee.InnerException))
         {
             Console.WriteLine($"******");
             Console.WriteLine($"****** {excp.GetType().Name}: {excp.Message}");
-            Console.WriteLine($"****** " + excp.StackTrace.Replace("\n", "\n****** "));
+            var stack = excp.StackTrace;
+            if (skipInvoker)
+            {
+                var parts = stack.Replace("\r\n", "\n").Split('\n');
+                parts.ReverseInplace();
+                parts = parts.SkipWhile(p => !p.Contains(" in ") || !p.Contains(":line")).ToArray();
+                parts.ReverseInplace();
+                if (parts.Length > 0)
+                    stack = parts.JoinString(Environment.NewLine);
+            }
+            Console.WriteLine($"****** " + stack.Replace("\n", "\n****** "));
+            skipInvoker = false;
         }
         Console.WriteLine($"******");
     }
