@@ -1,8 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Text;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using RT.Util;
@@ -15,10 +17,11 @@ static class Program
 {
     public static Settings Settings;
     public static string ScriptName = "(unknown)"; // without path or extension
+    public static string ScriptDir;
 
     static LogAndConsoleWriter _writer;
-    static List<string> _warnings = [];
-    static List<string> _settingsFiles = [];
+    static List<string> _warnings = []; // issues not critical enough to abort a run, but important enough to be worth a Telegram alert
+    static List<string> _infos = []; // things we want logged before we know where to log them to
     static IOutcome _outcome;
     static DateTime _startedAt = DateTime.UtcNow;
     static TimeSpan _duration;
@@ -68,24 +71,26 @@ static class Program
         // Parse args and load script-specific settings, if any
         var scriptFile = Path.GetFullPath(args[0]);
         args = args.Skip(1).ToArray();
-        var scriptDir = Path.GetDirectoryName(scriptFile);
+        ScriptDir = Path.GetDirectoryName(scriptFile);
         ScriptName = Path.GetFileNameWithoutExtension(scriptFile);
-        TryLoadSettings(Path.Combine(scriptDir, $"{ScriptName}.RunLoggedCs.xml"));
-        TryLoadSettings(Path.Combine(scriptDir, $"{ScriptName}.RunLoggedCs.{Environment.MachineName}.xml"));
+        TryLoadSettings(Path.Combine(ScriptDir, $"{ScriptName}.RunLoggedCs.xml"));
+        TryLoadSettings(Path.Combine(ScriptDir, $"{ScriptName}.RunLoggedCs.{Environment.MachineName}.xml"));
 
-        // Send StdOut to a file log, now that we know where to log
-        _writer = new LogAndConsoleWriter(ScriptName + ".log"); // also sets Console.Out to self
+        // Initialise StdOut logging, now that we know where to log
+        var logFile = RotateLogsAndGetPath();
+        if (logFile != null) // null means disabled or invalid config
+            _writer = new LogAndConsoleWriter(logFile); // also sets Console.Out to self
 
         // Log header
-        if (!_writer.IsNewFile)
+        if (_writer?.IsNewFile == false)
             Console.WriteLine(); // previous log may not have had a proper newline
         Console.WriteLine($"************************************************************************");
         Console.WriteLine($"****** RunLoggedCs v[DEV] invoked at {_startedAt.ToLocalTime():yyyy-MM-dd HH:mm:ss}");
         Console.WriteLine($"****** Script: |{scriptFile}|");
         Console.WriteLine($"****** Script args: {(args.Length == 0 ? "(none)" : args.JoinString(" ", "|", "|"))}");
         Console.WriteLine($"****** CurDir: |{Directory.GetCurrentDirectory()}|");
-        foreach (var sf in _settingsFiles)
-            Console.WriteLine($"****** Settings file: |{sf}|");
+        foreach (var info in _infos)
+            Console.WriteLine($"****** {info}");
         Console.WriteLine();
 
         // Compile everything and get a runnable function
@@ -114,7 +119,7 @@ static class Program
                 return;
             var settings = Settings.LoadFromFile(fullname);
             Settings.AddOverrides(settings);
-            _settingsFiles.Add(fullname);
+            _infos.Add($"Settings file: |{fullname}|");
         }
         catch (Exception e)
         {
@@ -185,6 +190,145 @@ static class Program
         if (main == null)
             throw new CompileException($"No candidates found for the Main method (entry point).");
         return main;
+    }
+
+    private static string RotateLogsAndGetPath()
+    {
+        // We run this before we start logging; makes sense to delete old logs first. It's tempting to run it again on exit, to maintain the
+        // limits with the newly added logs, but then we might end up trimming a long output from the current run, which is highly undesirable.
+
+        if (Settings.Log.Enabled != true)
+            return null;
+
+        var fullPath = Path.Combine(ScriptDir, Settings.Log.Path).Replace("{name}", ScriptName, StringComparison.OrdinalIgnoreCase);
+
+        (int pos, string pattern) split(string pattern) => (fullPath.IndexOf(pattern, StringComparison.OrdinalIgnoreCase), pattern);
+        var s = split("{daily}");
+        if (s.pos < 0) s = split("{monthly}");
+        if (s.pos < 0) s = split("{yearly}");
+        int dateStart = s.pos;
+        string dateType = s.pos < 0 ? null : s.pattern;
+        string dateSearch = null;
+        string currentPath = fullPath;
+        if (dateType == "{daily}")
+        {
+            dateSearch = "????-??-??";
+            currentPath = fullPath.Substring(0, dateStart) + $"{_startedAt:yyyy-MM-dd}" + fullPath.Substring(dateStart + dateType.Length);
+        }
+        else if (dateType == "{monthly}")
+        {
+            dateSearch = "????-??";
+            currentPath = fullPath.Substring(0, dateStart) + $"{_startedAt:yyyy-MM}" + fullPath.Substring(dateStart + dateType.Length);
+        }
+        else if (dateType == "{yearly}")
+        {
+            dateSearch = "????";
+            currentPath = $"{fullPath[..dateStart]}{_startedAt:yyyy}{fullPath[(dateStart + dateType.Length)..]}";
+        }
+
+        var logdir = Path.GetDirectoryName(dateType == null ? fullPath : $"{fullPath[..dateStart]}*{fullPath[(dateStart + dateType.Length)..]}"); // * is invalid; if it's part of a directory name we'll get an exception below
+        if (!Directory.Exists(logdir))
+        {
+            try { Directory.CreateDirectory(logdir); }
+            catch
+            {
+                _warnings.Add($"Could not start logging; path: {logdir}"); // permission error or template in directory name
+                return null;
+            }
+        }
+
+        // Apply size and age limits
+        try
+        {
+            // If using date template, delete old log files
+            if (dateType != null)
+            {
+                var search = Path.GetFileName($"{fullPath[..dateStart]}{dateSearch}{fullPath[(dateStart + dateType.Length)..]}");
+                var files = new DirectoryInfo(logdir).GetFiles(search);
+                var kept = new List<(FileInfo file, DateTime lastlog)>();
+                foreach (var file in files.OrderBy(f => f.Name))
+                {
+                    if (file.FullName.EqualsIgnoreCase(currentPath))
+                        continue;
+                    var dateStr = file.FullName[dateStart..(dateStart + dateSearch.Length)];
+                    if (dateType == "{monthly}")
+                        dateStr += "-01";
+                    else if (dateType == "{yearly}")
+                        dateStr += "-01-01";
+                    if (!DateTime.TryParseExact(dateStr, "yyyy'-'MM'-'dd", null, DateTimeStyles.AssumeLocal, out var lastlog))
+                        continue; // could add to warning but probably not necessary
+                    if (dateType == "{daily}")
+                        lastlog = lastlog.AddDays(1);
+                    else if (dateType == "{monthly}")
+                        lastlog = lastlog.AddMonths(1);
+                    else if (dateType == "{yearly}")
+                        lastlog = lastlog.AddYears(1);
+                    if (Settings.Log.DaysToKeep > 0 && (DateTime.Now - lastlog).TotalDays > Settings.Log.DaysToKeep)
+                    {
+                        try
+                        {
+                            file.Delete();
+                            _infos.Add($"Deleted log file due to age limit: {file.FullName}");
+                        }
+                        catch { _warnings.Add($"Could not delete old log file (1): {file.FullName}"); }
+                    }
+                    else
+                        kept.Add((file, lastlog));
+                }
+                // Now delete oldest files until we're below the size limit (note that files over the age limit that failed to be deleted are not included in the calculation - on purpose, to limit stuck files impacting on recent logs)
+                if (Settings.Log.MaxTotalSizeKB > 0)
+                {
+                    var totalSize = File.Exists(currentPath) ? new FileInfo(currentPath).Length : 0;
+                    totalSize += kept.Sum(k => k.file.Length);
+                    foreach (var k in kept.OrderBy(k => k.lastlog))
+                    {
+                        if (totalSize / 1000 <= Settings.Log.MaxTotalSizeKB)
+                            break;
+                        try
+                        {
+                            var size = k.file.Length;
+                            k.file.Delete();
+                            _infos.Add($"Deleted log file due to size limit: {k.file.FullName}");
+                            totalSize -= size;
+                        }
+                        catch { _warnings.Add($"Could not delete log file (2): {k.file.FullName}"); }
+                    }
+                }
+            }
+
+            // If current log file is over the size limit all by itself, trim it too
+            if (Settings.Log.MaxTotalSizeKB > 0 && File.Exists(currentPath) && new FileInfo(currentPath).Length / 1000 > Settings.Log.MaxTotalSizeKB)
+            {
+                _infos.Add($"Trimmed lines from log file due to size limit: {currentPath}");
+                // Pass 1: add up line lengths until we know how many lines to skip, targeting half of MaxTotalSizeKB
+                long deleteSize = new FileInfo(currentPath).Length - Settings.Log.MaxTotalSizeKB.Value * 1000 / 2;
+                long sizeSoFar = 0;
+                int skipLines = 0;
+                foreach (var line in File.ReadLines(currentPath))
+                {
+                    sizeSoFar += Encoding.UTF8.GetByteCount(line) + 2;
+                    skipLines++;
+                    if (sizeSoFar >= deleteSize)
+                        break;
+                }
+                // Pass 2: rewrite to temp location
+                var tempPath = currentPath + ".~tmp";
+                File.WriteAllLines(tempPath,
+                    new[] { "****** (older logs trimmed here)", "" }.Concat(
+                        File.ReadLines(currentPath).Skip(skipLines)
+                    )
+                );
+                // Rename
+                File.Move(tempPath, currentPath, overwrite: true);
+            }
+        }
+        catch (Exception e)
+        {
+            // There are many ways for log trimming to fail. If it does, log a generic warning but leave logging enabled.
+            _warnings.Add($"Error while trimming logs: {e.GetType().Name}, {e.Message}");
+        }
+
+        return currentPath;
     }
 
     static void NotifyOutcome()
