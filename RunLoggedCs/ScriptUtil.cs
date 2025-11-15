@@ -1,4 +1,5 @@
 ﻿using System;
+using System.IO;
 using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
@@ -6,8 +7,17 @@ using RT.Util.ExtensionMethods;
 
 namespace RunLoggedCs.ScriptUtil;
 
-public class Log
+public class Env
 {
+    public static string ScriptName => Program.ScriptName;
+    public static string ScriptDir => Program.ScriptDir;
+    public static string ScriptFile => Program.ScriptFile;
+
+    public static void CdToScriptDir()
+    {
+        Directory.SetCurrentDirectory(ScriptDir);
+    }
+
     /// <summary>
     ///     Use to send a non-critical failure notification (when script can continue). If the failure is critical prefer
     ///     throwing, or sending a custom message via <see cref="Telegram.Send"/>.</summary>
@@ -34,20 +44,20 @@ public class Telegram
             var botToken = warn ? _settings?.WarnBotToken : _settings?.InfoBotToken;
             if (botToken == null || _settings.Recipient == null)
             {
-                Log.Warn("[Telegram] Skipping send because bot token or recipient is not set");
+                Env.Warn("[Telegram] Skipping send because bot token or recipient is not set");
                 return;
             }
-            Log.WriteLinePrefixed($"[Telegram {(warn ? "WARN" : "info")}] {html}", 16);
+            Env.WriteLinePrefixed($"[Telegram {(warn ? "WARN" : "info")}] {html}", 16);
             html = _sender + ":\n" + html;
             var url = new UrlHelper($"https://api.telegram.org/bot{botToken}/sendMessage");
             url.AddQuery("chat_id", _settings.Recipient).AddQuery("parse_mode", "HTML").AddQuery("text", html);
             var resp = await url.PingAsync(quiet: true);
             if ((int)resp.StatusCode != 200)
-                Log.Warn($"[Telegram] Status {(int)resp.StatusCode}, {await resp.Content.ReadAsStringAsync()}");
+                Env.Warn($"[Telegram] Status {(int)resp.StatusCode}, {await resp.Content.ReadAsStringAsync()}");
         }
         catch (Exception e)
         {
-            Log.Warn($"[Telegram] {e.GetType().Name}, {e.Message}");
+            Env.Warn($"[Telegram] {e.GetType().Name}, {e.Message}");
         }
     }
 
@@ -99,10 +109,10 @@ public class UrlHelper
     {
         var url = _url.ToString();
         if (!quiet)
-            Log.WriteLinePrefixed($"[UrlPing] Pinging URL {url}");
+            Env.WriteLinePrefixed($"[UrlPing] Pinging URL {url}");
         var resp = await _http.GetAsync(url);
         if ((int)resp.StatusCode != 200 && !quiet)
-            Log.Warn($"[UrlPing] Status {(int)resp.StatusCode}, {await resp.Content.ReadAsStringAsync()}");
+            Env.Warn($"[UrlPing] Status {(int)resp.StatusCode}, {await resp.Content.ReadAsStringAsync()}");
         return resp;
     }
 

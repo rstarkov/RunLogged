@@ -18,7 +18,7 @@ static class Program
 {
     public static Settings Settings;
     public static string ScriptName = "(unknown)"; // without path or extension
-    public static string ScriptDir;
+    public static string ScriptDir, ScriptFile;
 
     static LogAndConsoleWriter _writer;
     static List<string> _warnings = []; // issues not critical enough to abort a run, but important enough to be worth a Telegram warning
@@ -73,6 +73,7 @@ static class Program
         var scriptFile = Path.GetFullPath(args[0]);
         args = args.Skip(1).ToArray();
         ScriptDir = Path.GetDirectoryName(scriptFile);
+        ScriptFile = Path.GetFileName(scriptFile);
         ScriptName = Path.GetFileNameWithoutExtension(scriptFile);
         TryLoadSettings(ScriptDir, $"{ScriptName}.RunLoggedCs.xml");
         TryLoadSettings(ScriptDir, $"{ScriptName}.RunLoggedCs.{Environment.MachineName}.xml");
