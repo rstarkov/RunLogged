@@ -7,10 +7,18 @@
     <DebugType>embedded</DebugType>
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <Configurations>DebugConsole;DebugWindowless;ReleaseConsole;ReleaseWindowless</Configurations>
+    <Platforms>AnyCPU</Platforms>
   </PropertyGroup>
 
-  <PropertyGroup Condition="'$(Platform)'=='AnyCPU'">
-    <PlatformTarget>AnyCPU</PlatformTarget>
+  <PropertyGroup Condition=" '$(Configuration)' == 'DebugConsole' Or '$(Configuration)' == 'DebugWindowless' ">
+    <DefineConstants>$(DefineConstants);DEBUG</DefineConstants>
+  </PropertyGroup>
+  
+  <PropertyGroup Condition=" '$(Configuration)' == 'DebugConsole' Or '$(Configuration)' == 'ReleaseConsole' ">
+    <OutputType>Exe</OutputType>
+    <AssemblyName>RunLoggedWs</AssemblyName>
+    <DefineConstants>$(DefineConstants);CONSOLE</DefineConstants>
   </PropertyGroup>
 
   <ItemGroup>
