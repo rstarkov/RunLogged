@@ -27,8 +27,8 @@ jobs:
             const temp = `-p:InformationalVersion="${verStr}" -p:Version=${verNum} -p:FileVersion=${verNum} -p:AssemblyVersion=${verNum}`;
             console.log(temp);
             core.exportVariable('VERSIONS', temp);
-            vs.updateText('Src/CmdLineArgs.cs', 'Version [DEV]', `Version ${verStr}`);
-            vs.updateText('Src/Program.cs', 'v[DEV]', `v${verStr}`);
+            vs.updateText('RunLogged/CmdLineArgs.cs', 'Version [DEV]', `Version ${verStr}`);
+            vs.updateText('RunLogged/Program.cs', 'v[DEV]', `v${verStr}`);
 
       - name: Install dotnet
         uses: actions/setup-dotnet@v4
@@ -40,15 +40,15 @@ jobs:
 
       - name: "dotnet publish framework-dependent: ${{ env.VER_STR }}"
         run: |
-          dotnet publish Src\RunLogged.csproj --configuration ReleaseConsole ${{env.VERSIONS}} -o Publish\fwdep -p:PublishSingleFile=False
-          dotnet publish Src\RunLogged.csproj --configuration ReleaseWindowless ${{env.VERSIONS}} -o Publish\fwdep -p:PublishSingleFile=False
+          dotnet publish RunLogged\RunLogged.csproj --configuration ReleaseConsole ${{env.VERSIONS}} -o Publish\fwdep -p:PublishSingleFile=False
+          dotnet publish RunLogged\RunLogged.csproj --configuration ReleaseWindowless ${{env.VERSIONS}} -o Publish\fwdep -p:PublishSingleFile=False
           dotnet publish RunLoggedCs\RunLoggedCs.csproj --configuration ReleaseConsole ${{env.VERSIONS}} -o Publish\fwdep -p:PublishSingleFile=False
           dotnet publish RunLoggedCs\RunLoggedCs.csproj --configuration ReleaseWindowless ${{env.VERSIONS}} -o Publish\fwdep -p:PublishSingleFile=False
 
       - name: "dotnet publish framework-dependent (single-file): ${{ env.VER_STR }}"
         run: |
-          dotnet publish Src\RunLogged.csproj --configuration ReleaseConsole ${{env.VERSIONS}} -o Publish\fwdep-single
-          dotnet publish Src\RunLogged.csproj --configuration ReleaseWindowless ${{env.VERSIONS}} -o Publish\fwdep-single
+          dotnet publish RunLogged\RunLogged.csproj --configuration ReleaseConsole ${{env.VERSIONS}} -o Publish\fwdep-single
+          dotnet publish RunLogged\RunLogged.csproj --configuration ReleaseWindowless ${{env.VERSIONS}} -o Publish\fwdep-single
           dotnet publish RunLoggedCs\RunLoggedCs.csproj --configuration ReleaseConsole ${{env.VERSIONS}} -o Publish\fwdep-single
           dotnet publish RunLoggedCs\RunLoggedCs.csproj --configuration ReleaseWindowless ${{env.VERSIONS}} -o Publish\fwdep-single
 
