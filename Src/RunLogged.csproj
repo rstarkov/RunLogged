@@ -6,24 +6,24 @@
     <Nullable>disable</Nullable>
     <UseWindowsForms>true</UseWindowsForms>
 
-    <OutputType>WinExe</OutputType>
+    <Configurations>DebugConsole;DebugWindowless;ReleaseConsole;ReleaseWindowless</Configurations>
+    <Platforms>AnyCPU</Platforms>
     <AssemblyName>RunLoggedW</AssemblyName>
+    <OutputType>WinExe</OutputType>
 
     <PublishSingleFile>true</PublishSingleFile>
     <SelfContained>false</SelfContained>
-    <Configurations>DebugConsole;DebugWindowless;ReleaseConsole;ReleaseWindowless</Configurations>
-    <Platforms>AnyCPU</Platforms>
     <DebugSymbols>true</DebugSymbols>
     <DebugType>embedded</DebugType>
   </PropertyGroup>
-  
+
   <PropertyGroup Condition=" '$(Configuration)' == 'DebugConsole' Or '$(Configuration)' == 'DebugWindowless' ">
     <DefineConstants>$(DefineConstants);DEBUG</DefineConstants>
   </PropertyGroup>
-  
+
   <PropertyGroup Condition=" '$(Configuration)' == 'DebugConsole' Or '$(Configuration)' == 'ReleaseConsole' ">
-    <OutputType>Exe</OutputType>
     <AssemblyName>RunLoggedC</AssemblyName>
+    <OutputType>Exe</OutputType>
     <DefineConstants>$(DefineConstants);CONSOLE</DefineConstants>
   </PropertyGroup>
 

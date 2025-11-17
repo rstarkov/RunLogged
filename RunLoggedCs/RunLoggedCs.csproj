@@ -1,23 +1,30 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <OutputType>Exe</OutputType>
     <TargetFramework>net9.0-windows</TargetFramework>
-    <PublishSingleFile>true</PublishSingleFile>
-    <DebugType>embedded</DebugType>
-    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>disable</Nullable>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+
     <Configurations>DebugConsole;DebugWindowless;ReleaseConsole;ReleaseWindowless</Configurations>
     <Platforms>AnyCPU</Platforms>
+    <AssemblyName>RunLoggedWs</AssemblyName>
+    <OutputType>WinExe</OutputType>
+
+    <PublishSingleFile>true</PublishSingleFile>
+    <SelfContained>false</SelfContained>
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>embedded</DebugType>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
   </PropertyGroup>
 
   <PropertyGroup Condition=" '$(Configuration)' == 'DebugConsole' Or '$(Configuration)' == 'DebugWindowless' ">
     <DefineConstants>$(DefineConstants);DEBUG</DefineConstants>
   </PropertyGroup>
-  
+
   <PropertyGroup Condition=" '$(Configuration)' == 'DebugConsole' Or '$(Configuration)' == 'ReleaseConsole' ">
+    <AssemblyName>RunLoggedCs</AssemblyName>
     <OutputType>Exe</OutputType>
-    <AssemblyName>RunLoggedWs</AssemblyName>
     <DefineConstants>$(DefineConstants);CONSOLE</DefineConstants>
   </PropertyGroup>
 
