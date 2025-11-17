@@ -24,6 +24,9 @@ jobs:
             const verNum = vs.formatVersion(`1.$(GitRevCount)`);
             core.exportVariable('VER_STR', verStr);
             core.exportVariable('VER_NUM', verNum);
+            const temp = `-p:InformationalVersion="${verStr}" -p:Version=${verNum} -p:FileVersion=${verNum} -p:AssemblyVersion=${verNum}`;
+            console.log(temp);
+            core.exportVariable('VERSIONS', temp);
             vs.updateText('Src/CmdLineArgs.cs', 'Version [DEV]', `Version ${verStr}`);
             vs.updateText('Src/Program.cs', 'v[DEV]', `v${verStr}`);
 
@@ -35,15 +38,42 @@ jobs:
       - name: dotnet restore
         run: dotnet restore
 
-      - name: "dotnet publish Console: ${{ env.VER_STR }}"
-        run: dotnet publish Src\RunLogged.csproj --configuration ReleaseConsole -p:InformationalVersion="${{env.VER_STR}}" -p:Version=${{env.VER_NUM}} -p:FileVersion=${{env.VER_NUM}} -p:AssemblyVersion=${{env.VER_NUM}} -o Publish
+      - name: "dotnet publish framework-dependent: ${{ env.VER_STR }}"
+        run: |
+          dotnet publish Src\RunLogged.csproj --configuration ReleaseConsole ${{env.VERSIONS}} -o Publish\fwdep -p:PublishSingleFile=False
+          dotnet publish Src\RunLogged.csproj --configuration ReleaseWindowless ${{env.VERSIONS}} -o Publish\fwdep -p:PublishSingleFile=False
+          dotnet publish RunLoggedCs\RunLoggedCs.csproj --configuration ReleaseConsole ${{env.VERSIONS}} -o Publish\fwdep -p:PublishSingleFile=False
+          dotnet publish RunLoggedCs\RunLoggedCs.csproj --configuration ReleaseWindowless ${{env.VERSIONS}} -o Publish\fwdep -p:PublishSingleFile=False
 
-      - name: "dotnet publish Windowless: ${{ env.VER_STR }}"
-        run: dotnet publish Src\RunLogged.csproj --configuration ReleaseWindowless -p:InformationalVersion="${{env.VER_STR}}" -p:Version=${{env.VER_NUM}} -p:FileVersion=${{env.VER_NUM}} -p:AssemblyVersion=${{env.VER_NUM}} -o Publish
+      - name: "dotnet publish framework-dependent (single-file): ${{ env.VER_STR }}"
+        run: |
+          dotnet publish Src\RunLogged.csproj --configuration ReleaseConsole ${{env.VERSIONS}} -o Publish\fwdep-single
+          dotnet publish Src\RunLogged.csproj --configuration ReleaseWindowless ${{env.VERSIONS}} -o Publish\fwdep-single
+          dotnet publish RunLoggedCs\RunLoggedCs.csproj --configuration ReleaseConsole ${{env.VERSIONS}} -o Publish\fwdep-single
+          dotnet publish RunLoggedCs\RunLoggedCs.csproj --configuration ReleaseWindowless ${{env.VERSIONS}} -o Publish\fwdep-single
 
-      - name: Upload artifact
+      - name: "dotnet publish self-contained (single-file): ${{ env.VER_STR }}"
+        run: |
+          dotnet publish RunLoggedCs\RunLoggedCs.csproj --configuration ReleaseConsole ${{env.VERSIONS}} -o Publish\standalone -p:SelfContained=True
+          dotnet publish RunLoggedCs\RunLoggedCs.csproj --configuration ReleaseWindowless ${{env.VERSIONS}} -o Publish\standalone -p:SelfContained=True
+
+      - name: "Upload artifact: framework-dependent"
         uses: actions/upload-artifact@v4
         with:
-          name: RunLogged-v${{env.VER_NUM}}
-          path: Publish
+          name: RunLogged-v${{env.VER_NUM}}-net8
+          path: Publish\fwdep
+          if-no-files-found: error
+
+      - name: "Upload artifact: framework-dependent (single-file)"
+        uses: actions/upload-artifact@v4
+        with:
+          name: RunLogged-v${{env.VER_NUM}}-net8-single
+          path: Publish\fwdep-single
+          if-no-files-found: error
+
+      - name: "Upload artifact: self-contained (single-file)"
+        uses: actions/upload-artifact@v4
+        with:
+          name: RunLogged-v${{env.VER_NUM}}-standalone
+          path: Publish\standalone
           if-no-files-found: error
