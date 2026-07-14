@@ -13,7 +13,7 @@ class CmdLineArgs : ICommandLineValidatable
     public string WorkingDir = null;
 
     [Option("--log")]
-    [DocumentationRhoML("Log file name pattern. May be relative to {option}--cd{} {field}WorkingDir{}. The timestamp YYYY-MM-DD is substituted in place of any occurrences of \"{{}\" in {field}LogFilename{}.\n\nWhere the {option}--log{} argument is not specified, the log filename will be constructed from the command to be executed, a timestamp and a .log extension.\n\nIf the log file already exists, it will be appended to. The directory to contain the log file is created automatically if necessary.\n\nUse the empty string ({h}\"\"{}) to disable file logging.")]
+    [DocumentationRhoML("Log file name pattern. May be relative to {option}--cd{} {field}WorkingDir{}. All occurrences of \"{{}\" in {field}LogFilename{} are replaced with the timestamp in YYYY-MM-DD; \"{{m}\" for YYYY-MM.\n\nWhere the {option}--log{} argument is not specified, the log filename will be constructed from the command to be executed, a timestamp and a .log extension.\n\nIf the log file already exists, it will be appended to. The directory to contain the log file is created automatically if necessary.\n\nUse the empty string ({h}\"\"{}) to disable file logging.")]
     public string LogFilename = null;
 
     [Option("--email")]
@@ -76,7 +76,7 @@ class CmdLineArgs : ICommandLineValidatable
         if (LogFilename == "")
             LogFilename = null;
         else
-            LogFilename = Path.GetFullPath(LogFilename.Replace("{}", DateTime.Now.ToString("yyyy-MM-dd")));
+            LogFilename = Path.GetFullPath(LogFilename.Replace("{}", DateTime.Now.ToString("yyyy-MM-dd")).Replace("{m}", DateTime.Now.ToString("yyyy-MM")));
 
         if (SuccessCodes != null && FailureCodes != null)
             return CommandLineParser.Colorize(RhoML.Parse("The options {option}--success-codes{} and {option}--failure-codes{} are mutually exclusive and cannot be specified together."));
